@@ -1,5 +1,5 @@
 # Translation Pipeline
-Translate English text to target languages with IBM Granite 4.0 language models.
+Translate English text using the Google MADLAD-400 10B model.
 
 ## Installation
 Run the following commands in the terminal.
