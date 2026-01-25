@@ -1,4 +1,5 @@
-docling
+accelerate
+sentencepiece
 streamlit
 transformers
 torch
