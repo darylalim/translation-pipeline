@@ -1,21 +1,29 @@
 import json
-import os
-import tempfile
 import time
-from pathlib import Path
 
 import streamlit as st
 import torch
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.utils.model_downloader import download_models
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer
 
-# Docling models can be prefetched for offline use
-download_models()
+MODEL_NAME = "google/madlad400-10b-mt"
 
-artifacts_path = str(Path.home() / '.cache' / 'docling' / 'models')
+# Supported languages with BCP-47 codes
+LANGUAGES = {
+    "Cantonese": "yue",
+    "Mandarin Chinese": "zh",
+    "Chuukese": "chk",
+    "Hawaiian": "haw",
+    "Ilocano": "ilo",
+    "Japanese": "ja",
+    "Korean": "ko",
+    "Marshallese": "mh",
+    "Samoan": "sm",
+    "Spanish": "es",
+    "Tagalog": "fil",
+    "Thai": "th",
+    "Vietnamese": "vi",
+}
+
 
 def get_device():
     """Automatically detect the best available device in order of priority: MPS, CUDA, CPU."""
@@ -26,120 +34,111 @@ def get_device():
     else:
         return "cpu"
 
+
 @st.cache_resource
-def load_model(device):
+def load_model():
     """Load model and tokenizer at application startup."""
-    model_path = "ibm-granite/granite-4.0-h-tiny"
-    model = AutoModelForCausalLM.from_pretrained(model_path, device_map=device, dtype=torch.float16)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = T5ForConditionalGeneration.from_pretrained(MODEL_NAME, dtype=torch.float16)
+    tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
     return model, tokenizer
 
-def convert(source, doc_converter):
-    """Convert a source file to a Docling document and export to Markdown."""
-    result = doc_converter.convert(
-        source=source,
-        max_num_pages=100,
-        max_file_size=20971520
-    )
-    doc = result.document
-    doc_markdown = doc.export_to_markdown()
-    return doc_markdown
 
-def translate(doc_markdown, target_language, model, tokenizer, device):
-    """Translate the source text to the target language with a transformers model."""
-    prompt = f"""Translate {doc_markdown} to {target_language}. Only output the translation, and nothing else."""
-    chat = [{"role": "user", "content": prompt}]
-    chat = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
-    
-    input_tokens = tokenizer(chat, return_tensors="pt").to(device)
-    input_length = input_tokens["input_ids"].shape[1]
-    # max_new_tokens = input_length * 2
+def translate(text, target_lang_code, model, tokenizer, device):
+    """Translate text to the target language using MADLAD-400.
 
+    Returns a dict with the response and timing/token metrics.
+    """
+    # MADLAD-400 uses language tag prefix format: <2xx> text
+    input_text = f"<2{target_lang_code}> {text}"
+
+    # Tokenize and measure prompt evaluation
+    prompt_eval_start = time.perf_counter_ns()
+    inputs = tokenizer(input_text, return_tensors="pt").to(device)
+    prompt_eval_count = inputs["input_ids"].shape[1]
+    prompt_eval_end = time.perf_counter_ns()
+    prompt_eval_duration = prompt_eval_end - prompt_eval_start
+
+    # Generate and measure token generation
+    eval_start = time.perf_counter_ns()
     with torch.no_grad():
-        output = model.generate(
-            **input_tokens,
-            max_new_tokens=200
-            # max_new_tokens=max_new_tokens
-        )
+        outputs = model.generate(**inputs, max_new_tokens=512)
+    eval_end = time.perf_counter_ns()
+    eval_duration = eval_end - eval_start
 
-    generated_tokens = output[0][input_length:]
-    translation = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-    return translation
+    eval_count = outputs.shape[1]
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    return {
+        "response": response,
+        "prompt_eval_count": prompt_eval_count,
+        "prompt_eval_duration": prompt_eval_duration,
+        "eval_count": eval_count,
+        "eval_duration": eval_duration,
+    }
+
 
 st.title("Translation Pipeline")
-st.write("Translate English text to target languages with IBM Granite 4.0 language models.")
-
-uploaded_file = st.file_uploader("Upload file", type=["pdf"])
+st.write("Translate English text to supported languages using the MADLAD-400 model.")
 
 device = get_device()
 
+load_start = time.perf_counter_ns()
 with st.spinner(f"Loading model on {device.upper()}..."):
-    model, tokenizer = load_model(device)
+    model, tokenizer = load_model()
+    model.to(device)
+load_end = time.perf_counter_ns()
+load_duration = load_end - load_start
 
-selected_model_path = "ibm-granite/granite-4.0-h-tiny"
+st.subheader("Input")
+input_text = st.text_area("Enter English text to translate", height=150)
 
-st.subheader("Target Languages")
+st.subheader("Target Language")
 target_language = st.selectbox(
     "Select target language",
-    options=["Arabic", "Chinese", "Czech", "Dutch", "French", "German", "Italian", "Japanese", "Korean", "Portuguese", "Spanish"],
+    options=list(LANGUAGES.keys()),
     index=0
 )
 
-if st.button("Translate", type='primary'):
-    pipeline_options = PdfPipelineOptions(
-        artifacts_path=artifacts_path,
-        do_table_structure=True
-    )
+if st.button("Translate", type="primary"):
+    if input_text.strip():
+        with st.spinner("Translating..."):
+            target_code = LANGUAGES[target_language]
+            total_start = time.perf_counter_ns()
+            result = translate(input_text, target_code, model, tokenizer, device)
+            total_end = time.perf_counter_ns()
+            total_duration = total_end - total_start
 
-    doc_converter = DocumentConverter(
-        format_options={
-            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        st.subheader("Translation")
+        st.write(result["response"])
+
+        # Build download data
+        download_data = {
+            "model": MODEL_NAME,
+            "response": result["response"],
+            "total_duration": total_duration,
+            "load_duration": load_duration,
+            "prompt_eval_count": result["prompt_eval_count"],
+            "prompt_eval_duration": result["prompt_eval_duration"],
+            "eval_count": result["eval_count"],
+            "eval_duration": result["eval_duration"],
         }
-    )
 
-    if uploaded_file is not None:
-        try:
-            with st.spinner("Converting document..."):
-                # Save uploaded file temporarily for Docling to process                
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                    tmp_file.write(uploaded_file.read())
-                    tmp_file_path = tmp_file.name
-                
-                doc_markdown = convert(tmp_file_path, doc_converter)
-                
-                # Clean up temporary file
-                os.unlink(tmp_file_path)
+        # Display metrics (all fields except response)
+        st.subheader("Metrics")
+        st.metric("Model", MODEL_NAME)
+        st.metric("Total Duration (ns)", total_duration)
+        st.metric("Load Duration (ns)", load_duration)
+        st.metric("Prompt Eval Count", result["prompt_eval_count"])
+        st.metric("Prompt Eval Duration (ns)", result["prompt_eval_duration"])
+        st.metric("Eval Count", result["eval_count"])
+        st.metric("Eval Duration (ns)", result["eval_duration"])
 
-            with st.spinner("Translating..."):
-                start_time = time.time_ns()
-                translation = translate(doc_markdown, target_language, model, tokenizer, device)
-                end_time = time.time_ns()
-                total_duration_ns = end_time - start_time
-
-            st.success("Done.")
-
-            st.subheader("Metrics")
-
-            st.metric("Model", selected_model_path)
-            st.metric("Total Duration (nanoseconds)", total_duration_ns)
-            
-            # Prepare JSON for download
-            translation_data = {
-                "model": selected_model_path,
-                "total_duration_ns": total_duration_ns,
-                "translation": translation
-            }
-            
-            json_str = json.dumps(translation_data, indent=2)
-            
-            st.download_button(
-                label="Download JSON",
-                data=json_str,
-                file_name=f"{uploaded_file.name}_translation.json",
-                mime="application/json"
-            )
-            
-        except Exception as e:
-            st.error(f"Syntax error: {str(e)}")
+        # Download button
+        st.download_button(
+            label="Download JSON",
+            data=json.dumps(download_data, indent=2),
+            file_name="translation.json",
+            mime="application/json",
+        )
     else:
-        st.warning("Upload a PDF file.")
+        st.warning("Please enter text to translate.")
