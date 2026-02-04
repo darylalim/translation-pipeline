@@ -1,8 +1,7 @@
 streamlit
 transformers
 torch
-torchvision
 accelerate
-pillow
 python-dotenv
 pytest
+ruff
