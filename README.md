@@ -4,19 +4,13 @@ A Streamlit web application for translating text using Google's [TranslateGemma 
 
 ## Supported Languages
 
-**Bidirectional with English (21 languages):**
-Arabic, Cantonese, Chinese, Chuukese, Fijian, French, Hindi, Ilocano, Indonesian, Japanese, Korean, Lingala, Marshallese, Nepalbhasa (Newari), Russian, Spanish, Swahili, Tahitian, Thai, Tonga, Vietnamese
+**Bidirectional with English:**
+Cantonese, Chinese, Chuukese, Ilocano, Japanese, Korean, Marshallese, Spanish, Thai, Tonga (Tonga Islands), Vietnamese
 
-**English to only (16 languages):**
-Armenian, Burmese, Chinese (Taiwan), Filipino, Hawaiian, Khmer, Lao, Malayalam, Marathi, Mongolian, Persian, Portuguese (Brazil), Portuguese (Portugal), Punjabi, Samoan, Telugu
+**English to only:**
+Filipino, Hawaiian, Samoan
 
-**Non-English pairs:**
-- Arabic ↔ Swahili
-- Cantonese ↔ Chinese, Taiwanese Mandarin
-- Chinese ↔ Japanese, Swahili
-- Japanese → Chinese
-
-## Installation
+## Setup
 
 ```bash
 python3.12 -m venv streamlit_env
@@ -24,13 +18,11 @@ source streamlit_env/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a `.env` file with your Hugging Face token:
+Create a `.env` file with your [Hugging Face token](https://huggingface.co/settings/tokens):
 
 ```bash
 echo "HF_TOKEN=your_token_here" > .env
 ```
-
-Get your token at https://huggingface.co/settings/tokens
 
 ## Usage
 
@@ -38,14 +30,22 @@ Get your token at https://huggingface.co/settings/tokens
 streamlit run streamlit_app.py
 ```
 
-## Testing
+1. Select source and target languages
+2. Enter text to translate
+3. Click **Translate**
+4. View translation, metrics, and download results as JSON
+
+## Development
 
 ```bash
-pytest tests/ -v
+ruff check .          # lint
+ruff format .         # format
+pyright               # typecheck
+pytest                # run tests
 ```
 
 ## Requirements
 
 - Python 3.12+
 - ~8GB RAM for model loading
-- GPU recommended (supports CUDA, Apple Silicon MPS, or CPU fallback)
+- GPU recommended (CUDA, Apple Silicon MPS, or CPU fallback)
