@@ -1,139 +1,95 @@
-# CLAUDE.md
+# Translation Pipeline
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Streamlit web application for translating text using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model.
 
-## Project Overview
+## Commands
 
-A Streamlit web application for translating text to supported languages using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) translation model.
-
-## Setup & Development
-
-- **Setup environment**: `python3.12 -m venv streamlit_env`
-- **Activate environment**: `source streamlit_env/bin/activate`
-- **Install dependencies**: `pip install -r requirements.txt`
-- **Run application**: `streamlit run streamlit_app.py`
-
-## Testing & Code Quality
-
-- **Lint**: `ruff check .`
-- **Format**: `ruff format .`
-- **Typecheck**: `pyright`
-- **Run tests**: `pytest`
-- **Run single test**: `pytest tests/path_to_test.py::test_name -v`
+- **Install dependencies**: `uv sync`
+- **Run application**: `uv run streamlit run streamlit_app.py`
+- **Lint**: `uv run ruff check .`
+- **Format**: `uv run ruff format .`
+- **Typecheck**: `uv run ty check`
+- **Run tests**: `uv run pytest`
+- **Run single test**: `uv run pytest tests/path_to_test.py::test_name -v`
 
 ## Code Style
 
-- **Python**: snake_case for functions/variables, PascalCase for classes
-- **Imports**: Use isort with combine-as-imports
-- **Error handling**: Use custom ToolError for tool errors
-- **Types**: Add type annotations for all parameters and returns
-- **Classes**: Use dataclasses and abstract base classes
+- snake_case for functions/variables, PascalCase for classes
+- Type annotations for all parameters and returns
+- Use dataclasses for structured data
+- Formatting and import sorting handled by ruff
 
 ## Dependencies
 
-- **Hugging Face model loading**: `transformers`
-- **Tensor operations**: `torch`
-- **Web user interface**: `streamlit`
+- `transformers` — model loading
+- `torch` — tensor operations
+- `streamlit` — web UI
+- `accelerate` — multi-device support
+- `python-dotenv` — environment variables
 
 ## Architecture
 
-- **Device detection**: Use best available device (MPS > CUDA > CPU)
-- **Translation**: Use `transformers` with translation model
-- **Caching**: Use `@st.cache_resource` to load model
-- **Supported languages**: Use `st.selectbox` for source language and target language options
-- **Metrics**: Use `st.metric` to display metrics
-- **Download JSON**: Use `st.download_button` to download a JSON file
+### Language Configuration
 
-### Supported Languages
+`LANGUAGES` maps language name to `(BCP-47 code, bidirectional)` tuple. `SOURCE_LANGS` and `TARGET_LANGS` are derived from `LANGUAGES`.
 
-Languages paired with English in both directions:
+Bidirectional with English: Cantonese (yue), Chinese (zh-CN), Chuukese (chk), Ilocano (ilo), Japanese (ja), Korean (ko), Marshallese (mh), Spanish (es), Thai (th), Tonga (to), Vietnamese (vi)
 
-- Cantonese (yue)
-- Chinese (zh-CN)
-- Chuukese (chk)
-- Ilocano (ilo)
-- Japanese (ja)
-- Korean (ko)
-- Marshallese (mh)
-- Spanish (es)
-- Tonga (Tonga Islands) (to)
-- Thai (th)
-- Vietnamese (vi)
+English-only target: Filipino (fil), Hawaiian (haw), Samoan (sm)
 
-Languages from English:
+Notes: Chinese is Mandarin Chinese. Filipino is Tagalog.
 
-- Filipino (fil)
-- Hawaiian (haw)
-- Samoan (sm)
+### Model Loading
 
-Notes:
+`load_model()` returns `(model, processor, eos_token_id, load_duration)`. Cached with `@st.cache_resource`. Uses `device_map="auto"` and `dtype=torch.bfloat16`. Reads `HF_TOKEN` from environment.
 
-- Chinese is Mandarin Chinese
-- Filipino is Tagalog
+### Translation
 
-### Download
+`translate()` calls `load_model()` internally (cached) and returns a frozen `TranslationResult` dataclass with fields: `response`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, `eval_duration`.
 
-Include these items in the response JSON file:
+### Download JSON
 
-- model `string`: Model name
-- response `string`: The model's generated text response
-- total_duration `integer`: Time spent generating the response in nanoseconds
-- load_duration `integer`: Time spent loading the model in nanoseconds
-- prompt_eval_count `integer`: Number of input tokens in the prompt
-- prompt_eval_duration `integer`: Time spent evaluating the prompt in nanoseconds
-- eval_count `integer`: Number of output tokens generated in the response
-- eval_duration `integer`: Time spent generating tokens in nanoseconds
+Includes: `model` (string), `response` (string), `total_duration` (int, ns), `load_duration` (int, ns), `prompt_eval_count` (int), `prompt_eval_duration` (int, ns), `eval_count` (int), `eval_duration` (int, ns).
 
-Use `time.perf_counter_ns()` to measure duration and return time in nanoseconds.
+All durations measured with `time.perf_counter_ns()`.
 
 ### Metrics
 
-Display metrics for the model's generated response including all items in the JSON body except for the text response.
+Displays all JSON fields except `response` using `st.metric`.
 
 ## Known Issues
 
-### Do NOT use `processor.apply_chat_template` for TranslateGemma
+### Do NOT use `processor.apply_chat_template`
 
-`processor.apply_chat_template` fails at runtime for this model:
-
-- **Structured content format** (with `source_lang_code`/`target_lang_code` fields) raises `AttributeError: 'dict' object has no attribute '<lang_code>'` during template rendering, regardless of `tokenize=True` or `tokenize=False`.
-- **Plain text content** (string instead of list) is rejected by the template with `User role must provide content as an iterable with exactly one item`.
-
-Instead, manually construct the prompt using Gemma chat format tokens and the preferred prompt template, then tokenize directly with `processor.tokenizer`:
+Fails at runtime for TranslateGemma. Structured content raises `AttributeError`, plain text is rejected. Instead, manually construct the prompt and tokenize with `processor.tokenizer`:
 
 ```python
 prompt = f"<start_of_turn>user\n{instruction}<end_of_turn>\n<start_of_turn>model\n"
 inputs = processor.tokenizer(prompt, return_tensors="pt", add_special_tokens=True).to(model.device)
 ```
 
-### Always override `top_p` and `top_k` for greedy decoding
+### Override `top_p` and `top_k` for greedy decoding
 
-When using `do_sample=False`, explicitly pass `top_p=None, top_k=None` to `model.generate()` to override the model's default generation config and suppress warnings.
+Pass `top_p=None, top_k=None` to `model.generate()` when using `do_sample=False` to suppress warnings.
 
 ### Use `processor.tokenizer` for tokenization and decoding
 
-Use `processor.tokenizer(...)` for tokenization and `processor.tokenizer.decode(...)` for decoding. Do not use `processor.decode(...)` or `processor.apply_chat_template(...)`.
+Use `processor.tokenizer(...)` and `processor.tokenizer.decode(...)`. Do not use `processor.decode(...)` or `processor.apply_chat_template(...)`.
 
-## Usage
+## Prompt Template
 
-### Preferred Prompt
+Variables: `source_lang` (e.g. English), `src_lang_code` (e.g. en), `target_lang` (e.g. German), `tgt_lang_code` (e.g. de-DE), `text`.
 
-Preferred prompt when using the model. source_lang refers to the source language name,
-e.g. English, src_lang_code to the source language code, e.g. en-US, target_lang to the target
-language, e.g. German, and tgt_lang_code to the target language code, i.e. de-DE.
-
-```python
-"""
+```
 You are a professional {source_lang} ({src_lang_code}) to {target_lang}
 ({tgt_lang_code}) translator. Your goal is to accurately convey the meaning and
 nuances of the original {source_lang} text while adhering to {target_lang} grammar,
 vocabulary, and cultural sensitivities. Produce only the {target_lang}
 translation, without any additional explanations or commentary. Please translate
 the following {source_lang} text into {target_lang}:\n\n\n{text}
-"""
 ```
 
-### Text Translation
+## Example
 
 ```python
 import torch
