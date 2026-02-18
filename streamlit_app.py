@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import time
+from dataclasses import asdict, dataclass
+from typing import Any
 
 import streamlit as st
 import torch
@@ -38,22 +40,41 @@ LANGUAGES: dict[str, tuple[str, bool]] = {
 SOURCE_LANGS: list[str] = sorted(name for name, (_, bi) in LANGUAGES.items() if bi)
 
 
-def get_target_languages(source: str) -> list[str]:
-    """Get available target languages for a given source language."""
-    if source == "English":
-        return sorted(name for name in LANGUAGES if name != "English")
-    return ["English"]
+def _build_target_langs() -> dict[str, list[str]]:
+    targets: dict[str, list[str]] = {}
+    for name, (_, bi) in LANGUAGES.items():
+        if not bi:
+            continue
+        if name == "English":
+            targets[name] = sorted(n for n in LANGUAGES if n != name)
+        else:
+            targets[name] = ["English"]
+    return targets
+
+
+TARGET_LANGS: dict[str, list[str]] = _build_target_langs()
+
+
+@dataclass(frozen=True)
+class TranslationResult:
+    response: str
+    prompt_eval_count: int
+    prompt_eval_duration: int
+    eval_count: int
+    eval_duration: int
 
 
 @st.cache_resource
-def load_model() -> tuple[AutoModelForImageTextToText, AutoProcessor, int]:
+def load_model() -> tuple[Any, Any, int, int]:
+    t0 = time.perf_counter_ns()
     token = os.getenv("HF_TOKEN")
     processor = AutoProcessor.from_pretrained(MODEL_ID, token=token, use_fast=True)
     model = AutoModelForImageTextToText.from_pretrained(
         MODEL_ID, device_map="auto", dtype=torch.bfloat16, token=token
     )
     eos_token_id = processor.tokenizer.convert_tokens_to_ids("<end_of_turn>")
-    return model, processor, eos_token_id
+    load_duration = time.perf_counter_ns() - t0
+    return model, processor, eos_token_id, load_duration
 
 
 def translate(
@@ -62,10 +83,8 @@ def translate(
     src_code: str,
     tgt_lang: str,
     tgt_code: str,
-    model: AutoModelForImageTextToText,
-    processor: AutoProcessor,
-    eos_token_id: int,
-) -> dict[str, str | int]:
+) -> TranslationResult:
+    model, processor, eos_token_id, _ = load_model()
     instruction = (
         f"You are a professional {src_lang} ({src_code}) to {tgt_lang} "
         f"({tgt_code}) translator. Your goal is to accurately convey the meaning and "
@@ -99,15 +118,15 @@ def translate(
     eval_duration = time.perf_counter_ns() - t1
 
     generated = output[0][input_len:]
-    return {
-        "response": processor.tokenizer.decode(
+    return TranslationResult(
+        response=processor.tokenizer.decode(
             generated, skip_special_tokens=True
         ).strip(),
-        "prompt_eval_count": input_len,
-        "prompt_eval_duration": prompt_eval_duration,
-        "eval_count": int(generated.shape[0]),
-        "eval_duration": eval_duration,
-    }
+        prompt_eval_count=input_len,
+        prompt_eval_duration=prompt_eval_duration,
+        eval_count=int(generated.shape[0]),
+        eval_duration=eval_duration,
+    )
 
 
 st.title("Translation Pipeline")
@@ -117,22 +136,16 @@ if not os.getenv("HF_TOKEN"):
     st.stop()
 
 try:
-    t0 = time.perf_counter_ns()
     with st.spinner("Loading model..."):
-        model, processor, eos_token_id = load_model()
-    elapsed = time.perf_counter_ns() - t0
-    if "load_duration" not in st.session_state:
-        st.session_state.load_duration = elapsed
+        model, processor, eos_token_id, load_duration = load_model()
 except Exception as e:
     logger.exception("Failed to load model")
     st.error(f"Failed to load model: {e}")
     st.stop()
-load_duration: int = st.session_state.load_duration
 
 col1, col2 = st.columns(2)
 source = col1.selectbox("Source language", SOURCE_LANGS)
-targets = get_target_languages(source)
-target = col2.selectbox("Target language", targets)
+target = col2.selectbox("Target language", TARGET_LANGS[source])
 
 text = st.text_area(f"Enter {source} text", height=150)
 
@@ -149,20 +162,17 @@ if st.button("Translate", type="primary"):
                     LANGUAGES[source][0],
                     target,
                     LANGUAGES[target][0],
-                    model,
-                    processor,
-                    eos_token_id,
                 )
                 total_duration = time.perf_counter_ns() - t0
 
             st.subheader("Translation")
-            st.write(result["response"])
+            st.write(result.response)
 
             data = {
                 "model": MODEL_ID,
                 "total_duration": total_duration,
                 "load_duration": load_duration,
-                **result,
+                **asdict(result),
             }
 
             st.subheader("Metrics")
@@ -170,13 +180,10 @@ if st.button("Translate", type="primary"):
                 ("Model", MODEL_ID),
                 ("Total Duration", f"{total_duration / 1e9:.2f}s"),
                 ("Load Duration", f"{load_duration / 1e9:.2f}s"),
-                ("Prompt Eval Count", result["prompt_eval_count"]),
-                (
-                    "Prompt Eval Duration",
-                    f"{result['prompt_eval_duration'] / 1e9:.2f}s",
-                ),
-                ("Eval Count", result["eval_count"]),
-                ("Eval Duration", f"{result['eval_duration'] / 1e9:.2f}s"),
+                ("Prompt Eval Count", result.prompt_eval_count),
+                ("Prompt Eval Duration", f"{result.prompt_eval_duration / 1e9:.2f}s"),
+                ("Eval Count", result.eval_count),
+                ("Eval Duration", f"{result.eval_duration / 1e9:.2f}s"),
             ]
             cols = st.columns(4)
             for i, (label, value) in enumerate(metrics):
