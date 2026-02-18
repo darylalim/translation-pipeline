@@ -1,0 +1,308 @@
+from unittest.mock import MagicMock, patch
+
+
+class TestConstants:
+    def test_model_id(self, app_module):
+        assert app_module.MODEL_ID == "google/translategemma-4b-it"
+
+    def test_max_new_tokens(self, app_module):
+        assert app_module.MAX_NEW_TOKENS == 512
+
+
+class TestLanguageConfiguration:
+    def test_languages_has_15_entries(self, app_module):
+        assert len(app_module.LANGUAGES) == 15
+
+    def test_languages_values_are_str_bool_tuples(self, app_module):
+        for name, value in app_module.LANGUAGES.items():
+            assert isinstance(value, tuple), f"{name}: expected tuple"
+            code, bi = value
+            assert isinstance(code, str), f"{name}: code should be str"
+            assert isinstance(bi, bool), f"{name}: bidirectional should be bool"
+
+    def test_12_bidirectional_languages(self, app_module):
+        bi_count = sum(1 for _, (_, bi) in app_module.LANGUAGES.items() if bi)
+        assert bi_count == 12
+
+    def test_3_unidirectional_languages(self, app_module):
+        uni_count = sum(1 for _, (_, bi) in app_module.LANGUAGES.items() if not bi)
+        assert uni_count == 3
+
+    def test_filipino_is_unidirectional(self, app_module):
+        assert app_module.LANGUAGES["Filipino"][1] is False
+
+    def test_hawaiian_is_unidirectional(self, app_module):
+        assert app_module.LANGUAGES["Hawaiian"][1] is False
+
+    def test_samoan_is_unidirectional(self, app_module):
+        assert app_module.LANGUAGES["Samoan"][1] is False
+
+    def test_bcp47_codes(self, app_module):
+        expected = {
+            "English": "en",
+            "Cantonese": "yue",
+            "Chinese": "zh-CN",
+            "Chuukese": "chk",
+            "Ilocano": "ilo",
+            "Japanese": "ja",
+            "Korean": "ko",
+            "Marshallese": "mh",
+            "Spanish": "es",
+            "Filipino": "fil",
+        }
+        for name, expected_code in expected.items():
+            assert app_module.LANGUAGES[name][0] == expected_code, (
+                f"{name} code mismatch"
+            )
+
+    def test_source_langs_has_12_entries(self, app_module):
+        assert len(app_module.SOURCE_LANGS) == 12
+
+    def test_source_langs_is_sorted(self, app_module):
+        assert app_module.SOURCE_LANGS == sorted(app_module.SOURCE_LANGS)
+
+    def test_source_langs_contains_english(self, app_module):
+        assert "English" in app_module.SOURCE_LANGS
+
+    def test_source_langs_excludes_unidirectional(self, app_module):
+        for name in ("Filipino", "Hawaiian", "Samoan"):
+            assert name not in app_module.SOURCE_LANGS
+
+    def test_get_target_languages_english_returns_14_sorted(self, app_module):
+        targets = app_module.get_target_languages("English")
+        assert len(targets) == 14
+        assert targets == sorted(targets)
+        assert "Filipino" in targets
+        assert "Hawaiian" in targets
+        assert "Samoan" in targets
+
+    def test_get_target_languages_non_english_returns_only_english(self, app_module):
+        for name in app_module.SOURCE_LANGS:
+            if name != "English":
+                assert app_module.get_target_languages(name) == ["English"]
+
+
+class TestTranslate:
+    def _call_translate(self, app_module, mock_model, mock_processor):
+        return app_module.translate(
+            "Hello",
+            "English",
+            "en",
+            "Spanish",
+            "es",
+            mock_model,
+            mock_processor,
+            107,
+        )
+
+    def test_returns_dict(self, app_module, mock_model, mock_processor):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        assert isinstance(result, dict)
+
+    def test_response_is_stripped(self, app_module, mock_model, mock_processor):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        assert result["response"] == "translated text"
+
+    def test_result_has_expected_keys(self, app_module, mock_model, mock_processor):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        expected_keys = {
+            "response",
+            "prompt_eval_count",
+            "prompt_eval_duration",
+            "eval_count",
+            "eval_duration",
+        }
+        assert set(result.keys()) == expected_keys
+
+    def test_instruction_contains_language_names(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        prompt = mock_processor.tokenizer.call_args[0][0]
+        assert "English" in prompt
+        assert "Spanish" in prompt
+
+    def test_instruction_contains_language_codes(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        prompt = mock_processor.tokenizer.call_args[0][0]
+        assert "(en)" in prompt
+        assert "(es)" in prompt
+
+    def test_prompt_uses_gemma_chat_format(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        prompt = mock_processor.tokenizer.call_args[0][0]
+        assert prompt.startswith("<start_of_turn>user\n")
+        assert "<end_of_turn>\n<start_of_turn>model\n" in prompt
+
+    def test_tokenizer_called_with_correct_args(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        call_kwargs = mock_processor.tokenizer.call_args[1]
+        assert call_kwargs["return_tensors"] == "pt"
+        assert call_kwargs["add_special_tokens"] is True
+
+    def test_inputs_moved_to_model_device(self, app_module, mock_model, mock_processor):
+        self._call_translate(app_module, mock_model, mock_processor)
+        mock_processor.tokenizer.return_value.to.assert_called_with("cpu")
+
+    def test_generate_called_with_correct_args(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        call_kwargs = mock_model.generate.call_args[1]
+        assert call_kwargs["do_sample"] is False
+        assert call_kwargs["max_new_tokens"] == 512
+        assert call_kwargs["top_p"] is None
+        assert call_kwargs["top_k"] is None
+        assert call_kwargs["eos_token_id"] == 107
+        assert call_kwargs["pad_token_id"] == 0
+
+    def test_decode_uses_skip_special_tokens(
+        self, app_module, mock_model, mock_processor
+    ):
+        self._call_translate(app_module, mock_model, mock_processor)
+        call_kwargs = mock_processor.tokenizer.decode.call_args[1]
+        assert call_kwargs["skip_special_tokens"] is True
+
+    def test_prompt_eval_count_matches_input_length(
+        self, app_module, mock_model, mock_processor
+    ):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        assert result["prompt_eval_count"] == 10
+
+    def test_eval_count_matches_generated_length(
+        self, app_module, mock_model, mock_processor
+    ):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        assert result["eval_count"] == 5
+
+    def test_timing_durations_are_non_negative_ints(
+        self, app_module, mock_model, mock_processor
+    ):
+        result = self._call_translate(app_module, mock_model, mock_processor)
+        assert isinstance(result["prompt_eval_duration"], int)
+        assert isinstance(result["eval_duration"], int)
+        assert result["prompt_eval_duration"] >= 0
+        assert result["eval_duration"] >= 0
+
+    def test_generate_called_exactly_once(self, app_module, mock_model, mock_processor):
+        self._call_translate(app_module, mock_model, mock_processor)
+        assert mock_model.generate.call_count == 1
+
+
+class TestLoadModel:
+    def test_returns_3_tuple(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "test-token"}),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            result = app_module.load_model()
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+    def test_processor_loaded_with_correct_args(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "test-token"}),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            app_module.load_model()
+        call_args, call_kwargs = MockAutoProc.from_pretrained.call_args
+        assert call_args[0] == "google/translategemma-4b-it"
+        assert call_kwargs["use_fast"] is True
+
+    def test_model_loaded_with_correct_args(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "test-token"}),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            app_module.load_model()
+        call_args, call_kwargs = MockAutoModel.from_pretrained.call_args
+        assert call_args[0] == "google/translategemma-4b-it"
+        assert call_kwargs["device_map"] == "auto"
+        assert call_kwargs["dtype"] == app_module.torch.bfloat16
+
+    def test_hf_token_passed_to_processor_and_model(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "my-secret-token"}),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            app_module.load_model()
+        assert MockAutoProc.from_pretrained.call_args[1]["token"] == "my-secret-token"
+        assert MockAutoModel.from_pretrained.call_args[1]["token"] == "my-secret-token"
+
+    def test_eos_token_extracted(self, app_module):
+        mock_proc = self._make_processor(eos_id=999)
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "test-token"}),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            _, _, eos_token_id = app_module.load_model()
+        mock_proc.tokenizer.convert_tokens_to_ids.assert_called_with("<end_of_turn>")
+        assert eos_token_id == 999
+
+    def test_reads_hf_token_from_env(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", {"HF_TOKEN": "env-token"}, clear=False),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            app_module.load_model()
+        assert MockAutoProc.from_pretrained.call_args[1]["token"] == "env-token"
+
+    def test_works_without_hf_token(self, app_module):
+        mock_proc = self._make_processor()
+        mock_model = self._make_model()
+        env = {k: v for k, v in __import__("os").environ.items() if k != "HF_TOKEN"}
+        with (
+            patch.object(app_module, "AutoProcessor") as MockAutoProc,
+            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
+            patch.dict("os.environ", env, clear=True),
+        ):
+            MockAutoProc.from_pretrained.return_value = mock_proc
+            MockAutoModel.from_pretrained.return_value = mock_model
+            app_module.load_model()
+        assert MockAutoProc.from_pretrained.call_args[1]["token"] is None
+        assert MockAutoModel.from_pretrained.call_args[1]["token"] is None
+
+    @staticmethod
+    def _make_processor(eos_id=107):
+        proc = MagicMock()
+        proc.tokenizer.convert_tokens_to_ids.return_value = eos_id
+        return proc
+
+    @staticmethod
+    def _make_model():
+        return MagicMock()
