@@ -1,8 +1,21 @@
+# Environment
 .env
-.DS_Store
-.ipynb_checkpoints
-*.ipynb
+.venv/
+
+# Python
 __pycache__/
 *.pyc
-.venv
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+
+# Project
 .worktrees/
