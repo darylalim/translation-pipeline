@@ -1,0 +1,24 @@
+[project]
+name = "translation-pipeline"
+version = "0.1.0"
+description = "A Streamlit web application for translating text using Google's TranslateGemma 4B model"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit",
+    "transformers",
+    "torch",
+    "accelerate",
+    "python-dotenv",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "ty",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

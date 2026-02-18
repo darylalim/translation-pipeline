@@ -1,7 +1,0 @@
-streamlit
-transformers
-torch
-accelerate
-python-dotenv
-pytest
-ruff
