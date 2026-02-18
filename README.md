@@ -7,15 +7,13 @@ A Streamlit web application for translating text using Google's [TranslateGemma 
 **Bidirectional with English:**
 Cantonese, Chinese, Chuukese, Ilocano, Japanese, Korean, Marshallese, Spanish, Thai, Tonga (Tonga Islands), Vietnamese
 
-**English to only:**
+**From English only:**
 Filipino, Hawaiian, Samoan
 
 ## Setup
 
 ```bash
-python3.12 -m venv streamlit_env
-source streamlit_env/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 Create a `.env` file with your [Hugging Face token](https://huggingface.co/settings/tokens):
@@ -27,7 +25,7 @@ echo "HF_TOKEN=your_token_here" > .env
 ## Usage
 
 ```bash
-streamlit run streamlit_app.py
+uv run streamlit run streamlit_app.py
 ```
 
 1. Select source and target languages
@@ -38,10 +36,10 @@ streamlit run streamlit_app.py
 ## Development
 
 ```bash
-ruff check .          # lint
-ruff format .         # format
-pyright               # typecheck
-pytest                # run tests
+uv run ruff check .   # lint
+uv run ruff format .  # format
+uv run ty check       # typecheck
+uv run pytest         # run tests
 ```
 
 ## Requirements
