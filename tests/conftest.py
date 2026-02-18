@@ -86,3 +86,18 @@ def mock_model():
     model.generate.return_value = mock_output
 
     return model
+
+
+@pytest.fixture()
+def patched_translate(app_module, mock_model, mock_processor):
+    """Patch load_model to return mock objects, yield translate function and mocks."""
+    with patch.object(
+        app_module,
+        "load_model",
+        return_value=(mock_model, mock_processor, 107, 5_000_000),
+    ):
+        yield {
+            "translate": app_module.translate,
+            "model": mock_model,
+            "processor": mock_processor,
+        }
