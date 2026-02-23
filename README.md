@@ -1,37 +1,31 @@
 # Translation Pipeline
 
-A Streamlit web application for translating text using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model.
+Streamlit web application for translating text using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model.
 
 ## Supported Languages
 
-**Bidirectional with English:**
-Cantonese, Chinese, Chuukese, Ilocano, Japanese, Korean, Marshallese, Spanish, Thai, Tonga (Tonga Islands), Vietnamese
-
-**From English only:**
-Filipino, Hawaiian, Samoan
+- **Bidirectional with English**: Cantonese, Chinese, Chuukese, Ilocano, Japanese, Korean, Marshallese, Spanish, Thai, Tonga (Tonga Islands), Vietnamese
+- **English-only target**: Filipino, Hawaiian, Samoan
 
 ## Setup
 
-```bash
-uv sync
-```
+1. Install dependencies:
 
-Create a `.env` file with your [Hugging Face token](https://huggingface.co/settings/tokens):
+   ```bash
+   uv sync
+   ```
 
-```bash
-echo "HF_TOKEN=your_token_here" > .env
-```
+2. Add your [Hugging Face token](https://huggingface.co/settings/tokens) to `.streamlit/secrets.toml`:
 
-## Usage
+   ```toml
+   HF_TOKEN = "your_token_here"
+   ```
 
-```bash
-uv run streamlit run streamlit_app.py
-```
+3. Run the application:
 
-1. Select source and target languages
-2. Enter text to translate
-3. Click **Translate**
-4. View translation, metrics, and download results as JSON
+   ```bash
+   uv run streamlit run streamlit_app.py
+   ```
 
 ## Development
 
@@ -45,5 +39,5 @@ uv run pytest         # run tests
 ## Requirements
 
 - Python 3.12+
-- ~8GB RAM for model loading
-- GPU recommended (CUDA, Apple Silicon MPS, or CPU fallback)
+- **GPU (CUDA or Apple Silicon MPS)**: runs locally with TranslateGemma 4B (~8GB RAM)
+- **CPU-only**: falls back to HF Inference API (requires network access)
