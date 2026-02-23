@@ -10,22 +10,28 @@ def app_module():
     """Import streamlit_app with all heavy dependencies mocked."""
     mock_st = MagicMock()
     mock_st.cache_resource = lambda f: f
+    mock_st.secrets.get.return_value = "fake-token"
+    mock_st.session_state = {}
 
-    col1, col2 = MagicMock(), MagicMock()
+    col1, col_swap, col2 = MagicMock(), MagicMock(), MagicMock()
     col1.selectbox.return_value = "English"
     col2.selectbox.return_value = "Spanish"
-    mock_st.columns.return_value = (col1, col2)
+    left_col, right_col = MagicMock(), MagicMock()
+    mock_st.columns.side_effect = [
+        (col1, col_swap, col2),
+        (left_col, right_col),
+    ]
     mock_st.button.return_value = False
 
     mock_torch = MagicMock()
     mock_transformers = MagicMock()
-    mock_dotenv = MagicMock()
+    mock_huggingface_hub = MagicMock()
 
     patches = {
         "streamlit": mock_st,
         "torch": mock_torch,
         "transformers": mock_transformers,
-        "dotenv": mock_dotenv,
+        "huggingface_hub": mock_huggingface_hub,
     }
 
     originals = {}
@@ -33,10 +39,9 @@ def app_module():
         originals[mod_name] = sys.modules.get(mod_name)
         sys.modules[mod_name] = mock_obj
 
-    with patch.dict("os.environ", {"HF_TOKEN": "fake-token"}):
-        if "streamlit_app" in sys.modules:
-            del sys.modules["streamlit_app"]
-        module = importlib.import_module("streamlit_app")
+    if "streamlit_app" in sys.modules:
+        del sys.modules["streamlit_app"]
+    module = importlib.import_module("streamlit_app")
 
     for mod_name, orig in originals.items():
         if orig is None:
@@ -89,15 +94,46 @@ def mock_model():
 
 
 @pytest.fixture()
-def patched_translate(app_module, mock_model, mock_processor):
-    """Patch load_model to return mock objects, yield translate function and mocks."""
-    with patch.object(
-        app_module,
-        "load_model",
-        return_value=(mock_model, mock_processor, 107, 5_000_000),
+def patched_translate_local(app_module, mock_model, mock_processor):
+    """Patch load_model and has_gpu for local backend tests."""
+    with (
+        patch.object(
+            app_module,
+            "load_model",
+            return_value=(mock_model, mock_processor, 107, 5_000_000),
+        ),
+        patch.object(app_module, "has_gpu", return_value=True),
     ):
         yield {
             "translate": app_module.translate,
+            "_translate_local": app_module._translate_local,
             "model": mock_model,
             "processor": mock_processor,
+            "token": "fake-token",
+        }
+
+
+@pytest.fixture()
+def patched_translate_api(app_module):
+    """Patch has_gpu to False and mock InferenceClient for API backend tests."""
+    mock_client_instance = MagicMock()
+    mock_output = MagicMock()
+    mock_output.generated_text = "  api translated text  "
+    mock_output.details.prefill = [MagicMock()] * 8
+    mock_output.details.generated_tokens = 3
+    mock_client_instance.text_generation.return_value = mock_output
+
+    mock_client_cls = MagicMock(return_value=mock_client_instance)
+
+    with (
+        patch.object(app_module, "has_gpu", return_value=False),
+        patch.object(app_module, "InferenceClient", mock_client_cls),
+    ):
+        yield {
+            "translate": app_module.translate,
+            "_translate_api": app_module._translate_api,
+            "client_cls": mock_client_cls,
+            "client": mock_client_instance,
+            "output": mock_output,
+            "token": "fake-token",
         }
