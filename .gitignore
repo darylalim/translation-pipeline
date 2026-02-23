@@ -1,6 +1,6 @@
 # Secrets
 .env
-.streamlit/secrets.toml
+.streamlit/
 
 # Python
 .venv/
