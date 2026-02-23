@@ -1,7 +1,7 @@
 [project]
 name = "translation-pipeline"
 version = "0.1.0"
-description = "Streamlit web application for translating text using Google's TranslateGemma 4B model"
+description = "Streamlit app for translating text using Google's TranslateGemma 4B model with local GPU inference"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
@@ -10,6 +10,7 @@ dependencies = [
     "transformers",
     "torch",
     "accelerate",
+    "python-dotenv",
 ]
 
 [dependency-groups]
