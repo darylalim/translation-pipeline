@@ -237,7 +237,7 @@ if translate_clicked:
     else:
         try:
             with st.status("Translating...", expanded=True) as status:
-                st.write("Running on local GPU...")
+                st.write("Running locally...")
                 t0 = time.perf_counter_ns()
                 result = translate(
                     text,
