@@ -322,19 +322,6 @@ class TestLoadModel:
         assert call_kwargs["dtype"] == app_module.torch.bfloat16
         assert "token" not in call_kwargs
 
-    def test_no_token_passed(self, app_module):
-        mock_proc = self._make_processor()
-        mock_model = self._make_model()
-        with (
-            patch.object(app_module, "AutoProcessor") as MockAutoProc,
-            patch.object(app_module, "AutoModelForImageTextToText") as MockAutoModel,
-        ):
-            MockAutoProc.from_pretrained.return_value = mock_proc
-            MockAutoModel.from_pretrained.return_value = mock_model
-            app_module.load_model()
-        assert "token" not in MockAutoProc.from_pretrained.call_args[1]
-        assert "token" not in MockAutoModel.from_pretrained.call_args[1]
-
     def test_eos_token_extracted(self, app_module):
         mock_proc = self._make_processor(eos_id=999)
         mock_model = self._make_model()
