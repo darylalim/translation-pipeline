@@ -1,12 +1,16 @@
 import json
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
 import streamlit as st
 import torch
+from dotenv import load_dotenv
 from transformers import AutoModelForImageTextToText, AutoProcessor
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -136,6 +140,11 @@ def translate(
 
 st.set_page_config(page_title="Translation Pipeline", page_icon="\U0001f310")
 st.title("Translation Pipeline")
+
+# --- Token check ---
+if not os.environ.get("HF_TOKEN"):
+    st.error("HF_TOKEN not found. Add it to your `.env` file.")
+    st.stop()
 
 # --- Model loading ---
 try:

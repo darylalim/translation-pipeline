@@ -23,11 +23,13 @@ def app_module():
     mock_st.button.return_value = False
 
     mock_torch = MagicMock()
+    mock_dotenv = MagicMock()
     mock_transformers = MagicMock()
 
     patches = {
         "streamlit": mock_st,
         "torch": mock_torch,
+        "dotenv": mock_dotenv,
         "transformers": mock_transformers,
     }
 
