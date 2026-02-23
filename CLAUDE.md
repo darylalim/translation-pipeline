@@ -25,7 +25,6 @@ Streamlit web application for translating text using Google's [TranslateGemma 4B
 - `torch` — tensor operations
 - `streamlit` — web UI
 - `accelerate` — multi-device support
-- `huggingface_hub` — HF Inference API client
 
 ## Architecture
 
@@ -39,29 +38,22 @@ Streamlit web application for translating text using Google's [TranslateGemma 4B
 
 ### Authentication
 
-`HF_TOKEN` is resolved from `st.secrets` (`.streamlit/secrets.toml` locally, Streamlit Secrets on cloud). If not found, the UI prompts the user to enter a token via `st.text_input`. The app stops until a valid token is provided.
+Requires `huggingface-cli login` before first run (model is gated). No runtime auth in the app.
 
 ### Prompt Construction
 
-`build_prompt(text, src_lang, src_code, tgt_lang, tgt_code)` constructs the full Gemma chat-formatted prompt with the translation instruction and source text. Shared by both backends.
-
-### Backend Detection
-
-`has_gpu()` returns `True` if `torch.cuda.is_available()` or `torch.backends.mps.is_available()`. Used to auto-select the inference backend.
+`build_prompt(text, src_lang, src_code, tgt_lang, tgt_code)` constructs the full Gemma chat-formatted prompt with the translation instruction and source text.
 
 ### Model Loading
 
-`load_model(token)` takes an HF token and returns `(model, processor, eos_token_id, load_duration)`. Only called on the local (GPU) path.
+`load_model()` returns `(model, processor, eos_token_id, load_duration)`.
 
 - Cached with `@st.cache_resource`
 - Uses `device_map="auto"` and `dtype=torch.bfloat16`
 
 ### Translation
 
-`translate(...)` calls `build_prompt()`, then dispatches to `_translate_local()` or `_translate_api()` based on `has_gpu()`. Returns a frozen `TranslationResult` dataclass with fields: `response`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, `eval_duration`.
-
-- **`_translate_local(prompt, token)`** — loads model via `load_model()`, tokenizes, runs `model.generate()`. All timing fields populated.
-- **`_translate_api(prompt, token)`** — uses `InferenceClient.text_generation()` with `details=True`. `prompt_eval_duration` and `eval_duration` are `0` (API doesn't expose timing). `prompt_eval_count` from `len(output.details.prefill)`, `eval_count` from `output.details.generated_tokens`.
+`translate(text, src_lang, src_code, tgt_lang, tgt_code)` calls `build_prompt()`, loads the model via `load_model()`, tokenizes, and runs `model.generate()`. Returns a frozen `TranslationResult` dataclass with fields: `response`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, `eval_duration`.
 
 ### UI Layout
 
@@ -69,15 +61,12 @@ Streamlit web application for translating text using Google's [TranslateGemma 4B
 - Language selectors use a 3-column `[5, 1, 5]` layout with a swap button in the middle column
 - Input/output uses a 2-column side-by-side layout; input is `st.text_area`, output is `st.code(language=None)` for built-in copy button
 - Labels use native Streamlit widget labels; the translation label uses an inline HTML `<label>` styled at `0.875rem` to match
-- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`, `used_gpu`
+- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`
 - Swap button is disabled when the target language is unidirectional (English-only target)
 
 ### Output
 
-Metrics and JSON fields vary by backend. `st.session_state["used_gpu"]` determines which set is shown.
-
-- **Local (GPU)** — all fields: `model`, `response`, `total_duration`, `load_duration`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, `eval_duration`
-- **API** — omits zero-valued duration fields: `model`, `response`, `total_duration`, `prompt_eval_count`, `eval_count`
+Fields: `model`, `response`, `total_duration`, `load_duration`, `prompt_eval_count`, `prompt_eval_duration`, `eval_count`, `eval_duration`.
 
 All durations are `int` in nanoseconds via `time.perf_counter_ns()`. Wrapped in `st.expander("Performance details")` with model name as `st.caption`, a 4-column grid of `st.metric` widgets, and a download button.
 

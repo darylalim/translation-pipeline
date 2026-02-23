@@ -6,7 +6,6 @@ from typing import Any
 
 import streamlit as st
 import torch
-from huggingface_hub import InferenceClient
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
 logging.basicConfig(level=logging.INFO)
@@ -79,24 +78,27 @@ def build_prompt(
     return f"<start_of_turn>user\n{instruction}<end_of_turn>\n<start_of_turn>model\n"
 
 
-def has_gpu() -> bool:
-    return torch.cuda.is_available() or torch.backends.mps.is_available()
-
-
 @st.cache_resource
-def load_model(token: str) -> tuple[Any, Any, int, int]:
+def load_model() -> tuple[Any, Any, int, int]:
     t0 = time.perf_counter_ns()
-    processor = AutoProcessor.from_pretrained(MODEL_ID, token=token, use_fast=True)
+    processor = AutoProcessor.from_pretrained(MODEL_ID, use_fast=True)
     model = AutoModelForImageTextToText.from_pretrained(
-        MODEL_ID, device_map="auto", dtype=torch.bfloat16, token=token
+        MODEL_ID, device_map="auto", dtype=torch.bfloat16
     )
     eos_token_id = processor.tokenizer.convert_tokens_to_ids("<end_of_turn>")
     load_duration = time.perf_counter_ns() - t0
     return model, processor, eos_token_id, load_duration
 
 
-def _translate_local(prompt: str, token: str) -> TranslationResult:
-    model, processor, eos_token_id, _ = load_model(token)
+def translate(
+    text: str,
+    src_lang: str,
+    src_code: str,
+    tgt_lang: str,
+    tgt_code: str,
+) -> TranslationResult:
+    prompt = build_prompt(text, src_lang, src_code, tgt_lang, tgt_code)
+    model, processor, eos_token_id, _ = load_model()
 
     t0 = time.perf_counter_ns()
     inputs = processor.tokenizer(
@@ -132,59 +134,17 @@ def _translate_local(prompt: str, token: str) -> TranslationResult:
     )
 
 
-def _translate_api(prompt: str, token: str) -> TranslationResult:
-    client = InferenceClient(model=MODEL_ID, token=token)
-    output = client.text_generation(
-        prompt, max_new_tokens=MAX_NEW_TOKENS, details=True, return_full_text=False
-    )
-    return TranslationResult(
-        response=output.generated_text.strip(),
-        prompt_eval_count=len(output.details.prefill),
-        prompt_eval_duration=0,
-        eval_count=output.details.generated_tokens,
-        eval_duration=0,
-    )
-
-
-def translate(
-    text: str,
-    src_lang: str,
-    src_code: str,
-    tgt_lang: str,
-    tgt_code: str,
-    token: str,
-) -> TranslationResult:
-    prompt = build_prompt(text, src_lang, src_code, tgt_lang, tgt_code)
-    if has_gpu():
-        return _translate_local(prompt, token)
-    return _translate_api(prompt, token)
-
-
 st.set_page_config(page_title="Translation Pipeline", page_icon="\U0001f310")
 st.title("Translation Pipeline")
 
-# --- Authentication ---
-hf_token = st.secrets.get("HF_TOKEN")
-if not hf_token:
-    st.info(
-        "A [Hugging Face token](https://huggingface.co/settings/tokens) is required "
-        "to access the TranslateGemma model. Create a token with **Read** access."
-    )
-    hf_token = st.text_input("Hugging Face Token", type="password")
-if not hf_token:
+# --- Model loading ---
+try:
+    with st.spinner("Loading model..."):
+        model, processor, eos_token_id, load_duration = load_model()
+except Exception as e:
+    logger.exception("Failed to load model")
+    st.error(f"Failed to load model: {e}")
     st.stop()
-
-# --- Backend detection & model loading ---
-if has_gpu():
-    try:
-        with st.spinner("Loading model..."):
-            model, processor, eos_token_id, load_duration = load_model(hf_token)
-    except Exception as e:
-        logger.exception("Failed to load model")
-        st.error(f"Failed to load model: {e}")
-        st.stop()
-else:
-    load_duration = 0
 
 # --- Session state defaults ---
 if "source_lang" not in st.session_state:
@@ -267,13 +227,8 @@ if translate_clicked:
         st.warning("Please enter text to translate.")
     else:
         try:
-            backend_msg = (
-                "Running on local GPU..."
-                if has_gpu()
-                else "Calling HF Inference API..."
-            )
             with st.status("Translating...", expanded=True) as status:
-                st.write(backend_msg)
+                st.write("Running on local GPU...")
                 t0 = time.perf_counter_ns()
                 result = translate(
                     text,
@@ -281,7 +236,6 @@ if translate_clicked:
                     LANGUAGES[source][0],
                     target,
                     LANGUAGES[target][0],
-                    hf_token,
                 )
                 total_duration = time.perf_counter_ns() - t0
                 status.update(
@@ -293,7 +247,6 @@ if translate_clicked:
             st.session_state["translation_result"] = result
             st.session_state["total_duration"] = total_duration
             st.session_state["load_duration"] = load_duration
-            st.session_state["used_gpu"] = has_gpu()
             st.rerun()
         except Exception as e:
             logger.exception("Translation failed")
@@ -305,36 +258,20 @@ if "translation_result" in st.session_state:
     total_duration = st.session_state["total_duration"]
     load_duration = st.session_state["load_duration"]
 
-    used_gpu = st.session_state.get("used_gpu", False)
-
-    if used_gpu:
-        data = {
-            "model": MODEL_ID,
-            "total_duration": total_duration,
-            "load_duration": load_duration,
-            **asdict(result),
-        }
-        metrics = [
-            ("Total Time", f"{total_duration / 1e9:.2f}s"),
-            ("Model Load Time", f"{load_duration / 1e9:.2f}s"),
-            ("Input Tokens", result.prompt_eval_count),
-            ("Input Processing Time", f"{result.prompt_eval_duration / 1e9:.2f}s"),
-            ("Output Tokens", result.eval_count),
-            ("Generation Time", f"{result.eval_duration / 1e9:.2f}s"),
-        ]
-    else:
-        data = {
-            "model": MODEL_ID,
-            "total_duration": total_duration,
-            "response": result.response,
-            "prompt_eval_count": result.prompt_eval_count,
-            "eval_count": result.eval_count,
-        }
-        metrics = [
-            ("Total Time", f"{total_duration / 1e9:.2f}s"),
-            ("Input Tokens", result.prompt_eval_count),
-            ("Output Tokens", result.eval_count),
-        ]
+    data = {
+        "model": MODEL_ID,
+        "total_duration": total_duration,
+        "load_duration": load_duration,
+        **asdict(result),
+    }
+    metrics = [
+        ("Total Time", f"{total_duration / 1e9:.2f}s"),
+        ("Model Load Time", f"{load_duration / 1e9:.2f}s"),
+        ("Input Tokens", result.prompt_eval_count),
+        ("Input Processing Time", f"{result.prompt_eval_duration / 1e9:.2f}s"),
+        ("Output Tokens", result.eval_count),
+        ("Generation Time", f"{result.eval_duration / 1e9:.2f}s"),
+    ]
 
     with st.expander("Performance details"):
         st.caption(f"Model: {MODEL_ID}")

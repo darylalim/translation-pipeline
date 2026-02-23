@@ -1503,7 +1503,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "accelerate" },
-    { name = "huggingface-hub" },
     { name = "streamlit" },
     { name = "torch" },
     { name = "transformers" },
@@ -1519,7 +1518,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate" },
-    { name = "huggingface-hub" },
     { name = "streamlit" },
     { name = "torch" },
     { name = "transformers" },
