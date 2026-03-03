@@ -35,11 +35,9 @@ Streamlit app for translating text using Google's [TranslateGemma 4B](https://hu
 
 ### Languages
 
-`LANGUAGES` maps language name to `(BCP-47 code, bidirectional)` tuple. `SOURCE_LANGS` and `TARGET_LANGS` are derived from `LANGUAGES`.
+`LANGUAGES` maps language name to BCP-47 code. `SOURCE_LANGS` is derived as a sorted list of all language names.
 
-- **Bidirectional**: Cantonese (yue), Chinese (zh-CN), Chuukese (chk), Ilocano (ilo), Japanese (ja), Korean (ko), Marshallese (mh), Spanish (es), Thai (th), Tonga (to), Vietnamese (vi)
-- **English-only target**: Filipino (fil), Hawaiian (haw), Samoan (sm)
-- Chinese is Mandarin Chinese; Filipino is Tagalog
+All languages are bidirectional with English: Chinese (zh-CN), Dutch (nl), French (fr), German (de), Indonesian (id), Italian (it), Japanese (ja), Korean (ko), Russian (ru), Spanish (es), Thai (th), Vietnamese (vi)
 
 ### Model Loading
 
@@ -60,7 +58,6 @@ Streamlit app for translating text using Google's [TranslateGemma 4B](https://hu
 - Language selectors: 3-column `[5, 1, 5]` layout with swap button in the middle
 - Input/output: 2-column side-by-side; `st.text_area` for input, `st.code(language=None)` for output
 - Translation label uses inline HTML `<label>` styled at `0.875rem` to match native widget labels
-- Swap button disabled when target is unidirectional (English-only target)
 - `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`
 
 ### Output
