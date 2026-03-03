@@ -4,8 +4,7 @@ Streamlit app for translating text using Google's [TranslateGemma 4B](https://hu
 
 ## Supported Languages
 
-- **Bidirectional with English**: Cantonese, Chinese, Chuukese, Ilocano, Japanese, Korean, Marshallese, Spanish, Thai, Tonga (Tonga Islands), Vietnamese
-- **English-only target**: Filipino, Hawaiian, Samoan
+Chinese, Dutch, French, German, Indonesian, Italian, Japanese, Korean, Russian, Spanish, Thai, Vietnamese — all bidirectional with English.
 
 ## Requirements
 
