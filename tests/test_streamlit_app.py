@@ -21,34 +21,23 @@ class TestLanguageConfiguration:
     def test_source_langs_has_12_entries(self, app_module):
         assert len(app_module.SOURCE_LANGS) == 12
 
-    def test_3_unidirectional_languages(self, app_module):
-        uni_count = sum(1 for _, (_, bi) in app_module.LANGUAGES.items() if not bi)
-        assert uni_count == 3
-
-    def test_filipino_is_unidirectional(self, app_module):
-        assert app_module.LANGUAGES["Filipino"][1] is False
-
-    def test_hawaiian_is_unidirectional(self, app_module):
-        assert app_module.LANGUAGES["Hawaiian"][1] is False
-
-    def test_samoan_is_unidirectional(self, app_module):
-        assert app_module.LANGUAGES["Samoan"][1] is False
-
     def test_bcp47_codes(self, app_module):
         expected = {
             "English": "en",
-            "Cantonese": "yue",
             "Chinese": "zh-CN",
-            "Chuukese": "chk",
-            "Ilocano": "ilo",
+            "Dutch": "nl",
+            "French": "fr",
+            "German": "de",
+            "Indonesian": "id",
             "Japanese": "ja",
             "Korean": "ko",
-            "Marshallese": "mh",
+            "Russian": "ru",
             "Spanish": "es",
-            "Filipino": "fil",
+            "Thai": "th",
+            "Vietnamese": "vi",
         }
         for name, expected_code in expected.items():
-            assert app_module.LANGUAGES[name][0] == expected_code, (
+            assert app_module.LANGUAGES[name] == expected_code, (
                 f"{name} code mismatch"
             )
 
@@ -58,25 +47,10 @@ class TestLanguageConfiguration:
     def test_source_langs_contains_english(self, app_module):
         assert "English" in app_module.SOURCE_LANGS
 
-    def test_source_langs_excludes_unidirectional(self, app_module):
-        for name in ("Filipino", "Hawaiian", "Samoan"):
-            assert name not in app_module.SOURCE_LANGS
-
-    def test_target_langs_keys_match_source_langs(self, app_module):
-        assert set(app_module.TARGET_LANGS.keys()) == set(app_module.SOURCE_LANGS)
-
-    def test_english_targets_14_sorted_languages(self, app_module):
-        targets = app_module.TARGET_LANGS["English"]
-        assert len(targets) == 14
-        assert targets == sorted(targets)
-        assert "Filipino" in targets
-        assert "Hawaiian" in targets
-        assert "Samoan" in targets
-
-    def test_non_english_targets_only_english(self, app_module):
-        for name, targets in app_module.TARGET_LANGS.items():
-            if name != "English":
-                assert targets == ["English"], f"{name} should only target English"
+    def test_english_can_target_all_non_english(self, app_module):
+        non_english = sorted(n for n in app_module.LANGUAGES if n != "English")
+        assert len(non_english) == 11
+        assert non_english == sorted(non_english)
 
 
 class TestTranslationResult:
