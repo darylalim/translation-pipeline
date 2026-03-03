@@ -38,9 +38,7 @@ class TestLanguageConfiguration:
             "Vietnamese": "vi",
         }
         for name, expected_code in expected.items():
-            assert app_module.LANGUAGES[name] == expected_code, (
-                f"{name} code mismatch"
-            )
+            assert app_module.LANGUAGES[name] == expected_code, f"{name} code mismatch"
 
     def test_source_langs_is_sorted(self, app_module):
         assert app_module.SOURCE_LANGS == sorted(app_module.SOURCE_LANGS)
