@@ -18,41 +18,22 @@ logger = logging.getLogger(__name__)
 MODEL_ID = "google/translategemma-4b-it"
 MAX_NEW_TOKENS = 512
 
-# Language name → (BCP-47 code, bidirectional with English)
-LANGUAGES: dict[str, tuple[str, bool]] = {
-    "English": ("en", True),
-    "Cantonese": ("yue", True),
-    "Chinese": ("zh-CN", True),
-    "Chuukese": ("chk", True),
-    "Ilocano": ("ilo", True),
-    "Japanese": ("ja", True),
-    "Korean": ("ko", True),
-    "Marshallese": ("mh", True),
-    "Spanish": ("es", True),
-    "Thai": ("th", True),
-    "Tonga (Tonga Islands)": ("to", True),
-    "Vietnamese": ("vi", True),
-    "Filipino": ("fil", False),
-    "Hawaiian": ("haw", False),
-    "Samoan": ("sm", False),
+LANGUAGES: dict[str, str] = {
+    "English": "en",
+    "Chinese": "zh-CN",
+    "Dutch": "nl",
+    "French": "fr",
+    "German": "de",
+    "Indonesian": "id",
+    "Japanese": "ja",
+    "Korean": "ko",
+    "Russian": "ru",
+    "Spanish": "es",
+    "Thai": "th",
+    "Vietnamese": "vi",
 }
 
-SOURCE_LANGS: list[str] = sorted(name for name, (_, bi) in LANGUAGES.items() if bi)
-
-
-def _build_target_langs() -> dict[str, list[str]]:
-    targets: dict[str, list[str]] = {}
-    for name, (_, bi) in LANGUAGES.items():
-        if not bi:
-            continue
-        if name == "English":
-            targets[name] = sorted(n for n in LANGUAGES if n != name)
-        else:
-            targets[name] = ["English"]
-    return targets
-
-
-TARGET_LANGS: dict[str, list[str]] = _build_target_langs()
+SOURCE_LANGS: list[str] = sorted(LANGUAGES.keys())
 
 
 @dataclass(frozen=True)
@@ -169,10 +150,6 @@ def _swap_languages() -> None:
     st.session_state["target_lang"] = src
 
 
-# Swap disabled when current target is unidirectional (not a valid source)
-_cur_target = st.session_state["target_lang"]
-can_swap = LANGUAGES[_cur_target][1] and _cur_target in SOURCE_LANGS
-
 # --- Language selectors with swap button ---
 col1, col_swap, col2 = st.columns([5, 1, 5])
 
@@ -182,8 +159,8 @@ source = col1.selectbox(
     key="source_lang",
 )
 
-# Validate target: if current target isn't valid for the new source, reset it
-valid_targets = TARGET_LANGS[source]
+# Valid targets: all languages except the selected source
+valid_targets = sorted(n for n in LANGUAGES if n != source)
 if st.session_state["target_lang"] not in valid_targets:
     st.session_state["target_lang"] = valid_targets[0]
 
@@ -197,7 +174,6 @@ with col_swap:
     st.markdown("<div style='height: 1.8em'></div>", unsafe_allow_html=True)
     st.button(
         "\u21c4",
-        disabled=not can_swap,
         use_container_width=True,
         on_click=_swap_languages,
     )
@@ -242,9 +218,9 @@ if translate_clicked:
                 result = translate(
                     text,
                     source,
-                    LANGUAGES[source][0],
+                    LANGUAGES[source],
                     target,
-                    LANGUAGES[target][0],
+                    LANGUAGES[target],
                 )
                 total_duration = time.perf_counter_ns() - t0
                 status.update(

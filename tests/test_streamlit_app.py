@@ -11,19 +11,15 @@ class TestConstants:
 
 
 class TestLanguageConfiguration:
-    def test_languages_has_15_entries(self, app_module):
-        assert len(app_module.LANGUAGES) == 15
+    def test_languages_has_12_entries(self, app_module):
+        assert len(app_module.LANGUAGES) == 12
 
-    def test_languages_values_are_str_bool_tuples(self, app_module):
-        for name, value in app_module.LANGUAGES.items():
-            assert isinstance(value, tuple), f"{name}: expected tuple"
-            code, bi = value
-            assert isinstance(code, str), f"{name}: code should be str"
-            assert isinstance(bi, bool), f"{name}: bidirectional should be bool"
+    def test_languages_values_are_str(self, app_module):
+        for name, code in app_module.LANGUAGES.items():
+            assert isinstance(code, str), f"{name}: expected str value"
 
-    def test_12_bidirectional_languages(self, app_module):
-        bi_count = sum(1 for _, (_, bi) in app_module.LANGUAGES.items() if bi)
-        assert bi_count == 12
+    def test_source_langs_has_12_entries(self, app_module):
+        assert len(app_module.SOURCE_LANGS) == 12
 
     def test_3_unidirectional_languages(self, app_module):
         uni_count = sum(1 for _, (_, bi) in app_module.LANGUAGES.items() if not bi)
@@ -55,9 +51,6 @@ class TestLanguageConfiguration:
             assert app_module.LANGUAGES[name][0] == expected_code, (
                 f"{name} code mismatch"
             )
-
-    def test_source_langs_has_12_entries(self, app_module):
-        assert len(app_module.SOURCE_LANGS) == 12
 
     def test_source_langs_is_sorted(self, app_module):
         assert app_module.SOURCE_LANGS == sorted(app_module.SOURCE_LANGS)
