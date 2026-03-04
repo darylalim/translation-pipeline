@@ -11,15 +11,15 @@ class TestConstants:
 
 
 class TestLanguageConfiguration:
-    def test_languages_has_13_entries(self, app_module):
-        assert len(app_module.LANGUAGES) == 13
+    def test_languages_has_9_entries(self, app_module):
+        assert len(app_module.LANGUAGES) == 9
 
     def test_languages_values_are_str(self, app_module):
         for name, code in app_module.LANGUAGES.items():
             assert isinstance(code, str), f"{name}: expected str value"
 
-    def test_source_langs_has_13_entries(self, app_module):
-        assert len(app_module.SOURCE_LANGS) == 13
+    def test_source_langs_has_9_entries(self, app_module):
+        assert len(app_module.SOURCE_LANGS) == 9
 
     def test_bcp47_codes(self, app_module):
         expected = {
@@ -30,11 +30,7 @@ class TestLanguageConfiguration:
             "German": "de",
             "Indonesian": "id",
             "Italian": "it",
-            "Japanese": "ja",
-            "Korean": "ko",
-            "Russian": "ru",
             "Spanish": "es",
-            "Thai": "th",
             "Vietnamese": "vi",
         }
         for name, expected_code in expected.items():
@@ -48,7 +44,7 @@ class TestLanguageConfiguration:
 
     def test_english_can_target_all_non_english(self, app_module):
         non_english = sorted(n for n in app_module.LANGUAGES if n != "English")
-        assert len(non_english) == 12
+        assert len(non_english) == 8
         assert non_english == sorted(non_english)
 
     def test_non_english_can_target_all_other_languages(self, app_module):
@@ -59,7 +55,7 @@ class TestLanguageConfiguration:
             assert "English" in valid_targets, (
                 f"{source} should be able to target English"
             )
-            assert len(valid_targets) == 12, f"{source} should have 12 targets"
+            assert len(valid_targets) == 8, f"{source} should have 8 targets"
             assert source not in valid_targets, f"{source} should not target itself"
 
 
@@ -124,7 +120,7 @@ class TestBuildPrompt:
 
     def test_contains_source_text(self, app_module):
         prompt = app_module.build_prompt(
-            "Translate me", "English", "en", "Japanese", "ja"
+            "Translate me", "English", "en", "French", "fr"
         )
         assert "Translate me" in prompt
 

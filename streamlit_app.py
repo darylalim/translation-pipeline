@@ -26,11 +26,7 @@ LANGUAGES: dict[str, str] = {
     "German": "de",
     "Indonesian": "id",
     "Italian": "it",
-    "Japanese": "ja",
-    "Korean": "ko",
-    "Russian": "ru",
     "Spanish": "es",
-    "Thai": "th",
     "Vietnamese": "vi",
 }
 
