@@ -1,6 +1,6 @@
 # Translation Pipeline
 
-Streamlit app for translating text using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model with local GPU inference.
+Streamlit app for translating text and images using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model with local GPU inference.
 
 ## Commands
 
@@ -21,9 +21,10 @@ Streamlit app for translating text using Google's [TranslateGemma 4B](https://hu
 
 ## Dependencies
 
+- `streamlit` — web UI
 - `transformers` — model loading
 - `torch` — tensor operations
-- `streamlit` — web UI
+- `torchvision` — fast image processor
 - `accelerate` — multi-device support
 - `python-dotenv` — `.env` file loading
 - `Pillow` — image processing
@@ -56,7 +57,7 @@ All languages are bidirectional with English: Chinese (zh), Dutch (nl), French (
 
 ### Image Translation
 
-`translate_image(image, src_code, tgt_code)` uses `processor.apply_chat_template` with the image message format. Unlike text translation (which manually constructs the prompt due to `apply_chat_template` failures), image translation uses the template's image code path which works correctly.
+`translate_image(image, src_code, tgt_code)` uses `processor.apply_chat_template` with the image message format. Unlike text translation (which manually constructs the prompt due to `apply_chat_template` failures), image translation uses the template's image code path which works correctly. The image is passed inside the message content dict — do NOT pass `images=` separately, as `apply_chat_template` extracts images automatically when `tokenize=True`.
 
 Input images are normalized to 896x896 resolution and encoded to 256 tokens each. Total input context is 2000 tokens.
 
@@ -101,6 +102,14 @@ inputs = processor.tokenizer(prompt, return_tensors="pt", add_special_tokens=Tru
 ### Do NOT use `processor.decode`
 
 Use `processor.tokenizer(...)` and `processor.tokenizer.decode(...)`.
+
+### Do NOT pass `images=` separately to `apply_chat_template`
+
+When `tokenize=True`, the processor extracts images from the content items automatically. Passing `images=[image]` as a separate parameter causes a conflict.
+
+### Use `zh` not `zh-CN` for Chinese
+
+TranslateGemma's chat template does not include `zh-CN` in its language dict. Use `zh` instead.
 
 ### Override `top_p` and `top_k` for greedy decoding
 
