@@ -268,7 +268,7 @@ class TestTranslateImage:
         mock_image = MagicMock()
         patched_translate_image["translate_image"](mock_image, "en", "es")
         call_kwargs = patched_translate_image["processor"].apply_chat_template.call_args[1]
-        assert call_kwargs["images"] == [mock_image]
+        assert "images" not in call_kwargs
         assert call_kwargs["tokenize"] is True
         assert call_kwargs["add_generation_prompt"] is True
         assert call_kwargs["return_dict"] is True

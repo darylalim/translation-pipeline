@@ -143,7 +143,6 @@ def translate_image(
     t0 = time.perf_counter_ns()
     inputs = processor.apply_chat_template(
         messages,
-        images=[image],
         tokenize=True,
         add_generation_prompt=True,
         return_dict=True,
