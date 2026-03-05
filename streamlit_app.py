@@ -361,10 +361,11 @@ with text_tab:
             height=150,
             placeholder=f"Enter {source} text to translate...",
         )
-        st.caption(f"{len(text)} characters")
+        st.caption(f"{word_count(text)} words \u00b7 {len(text)} characters")
         translate_text_clicked = st.button(
             "Translate", type="primary", use_container_width=True, key="translate_text"
         )
+        st.caption("Ctrl+Enter to translate")
 
     prev_response = (
         st.session_state["translation_result"].response
@@ -377,7 +378,7 @@ with text_tab:
         if prev_response:
             st.code(prev_response, language=None)
         else:
-            st.caption("Translation will appear here...")
+            st.caption("Enter text and click Translate to see results.")
 
 # --- Image tab ---
 with image_tab:
@@ -406,7 +407,7 @@ with image_tab:
         if prev_image_response:
             st.code(prev_image_response, language=None)
         else:
-            st.caption("Translation will appear here...")
+            st.caption("Upload an image and click Translate to see results.")
 
 # --- Text translation handler ---
 if translate_text_clicked:
@@ -443,6 +444,10 @@ if translate_text_clicked:
             st.session_state["total_duration"] = total_duration
             st.session_state["load_duration"] = load_duration
             st.session_state["active_mode"] = "multi"
+            st.toast(
+                f"Translated to {len(selected_targets)} languages "
+                f"in {total_duration / 1e9:.1f}s"
+            )
             st.session_state["history"].append(
                 {
                     "mode": "text",
@@ -485,6 +490,10 @@ if translate_text_clicked:
             st.session_state["total_duration"] = total_duration
             st.session_state["load_duration"] = load_duration
             st.session_state["active_mode"] = "text"
+            st.toast(
+                f"{LANGUAGES[source].upper()} \u2192 {LANGUAGES[target].upper()} "
+                f"translated in {total_duration / 1e9:.1f}s"
+            )
             st.session_state["history"].append(
                 {
                     "mode": "text",
@@ -511,7 +520,7 @@ if translate_image_clicked:
     else:
         try:
             with st.status("Translating image...", expanded=True) as status:
-                st.write("Running locally...")
+                st.write("Processing image and tokenizing...")
                 t0 = time.perf_counter_ns()
                 result = translate_image(
                     image,
@@ -529,6 +538,10 @@ if translate_image_clicked:
             st.session_state["total_duration"] = total_duration
             st.session_state["load_duration"] = load_duration
             st.session_state["active_mode"] = "image"
+            st.toast(
+                f"Image {LANGUAGES[source].upper()} \u2192 {LANGUAGES[target].upper()} "
+                f"translated in {total_duration / 1e9:.1f}s"
+            )
             filename = uploaded_file.name if uploaded_file else "image"
             st.session_state["history"].append(
                 {
