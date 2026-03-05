@@ -24,7 +24,7 @@ ACCEPTED_IMAGE_TYPES: list[str] = ["png", "jpg", "jpeg", "webp"]
 
 LANGUAGES: dict[str, str] = {
     "English": "en",
-    "Chinese": "zh-CN",
+    "Chinese": "zh",
     "Dutch": "nl",
     "French": "fr",
     "German": "de",

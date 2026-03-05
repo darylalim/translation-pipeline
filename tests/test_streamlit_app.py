@@ -27,7 +27,7 @@ class TestLanguageConfiguration:
     def test_bcp47_codes(self, app_module):
         expected = {
             "English": "en",
-            "Chinese": "zh-CN",
+            "Chinese": "zh",
             "Dutch": "nl",
             "French": "fr",
             "German": "de",
