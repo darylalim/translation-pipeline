@@ -63,15 +63,33 @@ Input images are normalized to 896x896 resolution and encoded to 256 tokens each
 
 Accepted image types: PNG, JPG, JPEG, WEBP.
 
+### Multi-Pair Translation
+
+`translate_multi(text, src_lang, src_code, tgt_langs, tgt_codes)` calls `translate()` for each target language sequentially. Returns `list[tuple[str, str, TranslationResult]]` — each tuple is `(target_lang_name, target_lang_code, result)`. Uses `strict=True` on `zip` to catch mismatched list lengths. Text mode only (image mode stays single-pair).
+
+### Metric Helpers
+
+- `compute_tokens_per_sec(eval_count, eval_duration)` — returns `float`, 0.0 for zero inputs
+- `compute_char_ratio(source, target)` — returns `len(target) / len(source)`, 0.0 for empty strings
+- `word_count(text)` — returns word count via `split()`, 0 for empty/whitespace
+
 ### UI
 
+- **Sidebar**: Model info header, session translation history (most recent first), click to restore, clear/export-JSON buttons
 - Language selectors: 3-column `[5, 1, 5]` layout with swap button in the middle
 - Input mode: `st.tabs(["Text", "Image"])` with shared language selectors above
-- Text tab: 2-column side-by-side; `st.text_area` for input, `st.code(language=None)` for output
+- **Multi-pair toggle**: `st.checkbox` inside text tab; when enabled, replaces target selectbox with `st.multiselect`
+- Text tab: 2-column side-by-side; `st.text_area` for input with word/character count, `st.code(language=None)` for output
 - Image tab: `st.file_uploader` + `st.image` preview (left), `st.code` output (right)
 - Translation label uses inline HTML `<label>` styled at `0.875rem` to match native widget labels
-- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`, `active_mode`
+- **Toast notifications**: `st.toast` on successful translation with language pair and timing
+- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`, `active_mode`, `history`, `source_text_for_metrics`
 - `st.session_state` keys (image): `image_translation_result`
+- `st.session_state` keys (multi-pair): `multi_pair_mode`, `multi_pair_results`, `selected_targets`
+
+### History
+
+Session-only translation history stored in `st.session_state["history"]` as a list of dicts. Each entry contains: `mode`, `source_lang`, `source_code`, `target_langs`, `target_codes`, `source_text`, `results` (list of `asdict(TranslationResult)`), `total_duration`, `load_duration`, `timestamp` (ISO 8601). Multi-pair entries store multiple targets/results. Sidebar renders history most-recent-first with clickable restore. Export downloads all entries as JSON.
 
 ### Output
 
@@ -85,8 +103,12 @@ Performance details in `st.expander` with `st.metric` widgets (4-column grid) an
 | Input Processing Time | `prompt_eval_duration` |
 | Output Tokens | `eval_count` |
 | Generation Time | `eval_duration` |
+| Tokens/sec | `tokens_per_sec` |
+| Char Ratio (tgt/src) | `char_ratio` (text mode only) |
 
 All durations are `int` nanoseconds via `time.perf_counter_ns()`.
+
+Multi-pair results display separately with per-language expandable cards showing translation, generation time, and tokens/sec, plus aggregate summary (total time, average tokens/sec, language count).
 
 ## Known Issues
 
