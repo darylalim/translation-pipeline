@@ -26,6 +26,7 @@ Streamlit app for translating text using Google's [TranslateGemma 4B](https://hu
 - `streamlit` — web UI
 - `accelerate` — multi-device support
 - `python-dotenv` — `.env` file loading
+- `Pillow` — image processing
 
 ## Architecture
 
@@ -53,12 +54,23 @@ All languages are bidirectional with English: Chinese (zh-CN), Dutch (nl), Frenc
 - `eval_count` — output token count
 - `eval_duration` — generation time (ns)
 
+### Image Translation
+
+`translate_image(image, src_code, tgt_code)` uses `processor.apply_chat_template` with the image message format. Unlike text translation (which manually constructs the prompt due to `apply_chat_template` failures), image translation uses the template's image code path which works correctly.
+
+Input images are normalized to 896x896 resolution and encoded to 256 tokens each. Total input context is 2000 tokens.
+
+Accepted image types: PNG, JPG, JPEG, WEBP.
+
 ### UI
 
 - Language selectors: 3-column `[5, 1, 5]` layout with swap button in the middle
-- Input/output: 2-column side-by-side; `st.text_area` for input, `st.code(language=None)` for output
+- Input mode: `st.tabs(["Text", "Image"])` with shared language selectors above
+- Text tab: 2-column side-by-side; `st.text_area` for input, `st.code(language=None)` for output
+- Image tab: `st.file_uploader` + `st.image` preview (left), `st.code` output (right)
 - Translation label uses inline HTML `<label>` styled at `0.875rem` to match native widget labels
-- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`
+- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `total_duration`, `load_duration`, `active_mode`
+- `st.session_state` keys (image): `image_translation_result`
 
 ### Output
 
@@ -77,9 +89,9 @@ All durations are `int` nanoseconds via `time.perf_counter_ns()`.
 
 ## Known Issues
 
-### Do NOT use `processor.apply_chat_template`
+### Do NOT use `processor.apply_chat_template` for text translation
 
-Fails at runtime for TranslateGemma. Manually construct the prompt and tokenize with `processor.tokenizer`:
+Fails at runtime for TranslateGemma text translation. Manually construct the prompt and tokenize with `processor.tokenizer`. Note: `apply_chat_template` **does** work for image translation (different code path).
 
 ```python
 prompt = f"<start_of_turn>user\n{instruction}<end_of_turn>\n<start_of_turn>model\n"
