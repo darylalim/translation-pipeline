@@ -1,6 +1,8 @@
 from dataclasses import asdict, is_dataclass
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestConstants:
     def test_model_id(self, app_module):
@@ -11,6 +13,10 @@ class TestConstants:
 
     def test_accepted_image_types(self, app_module):
         assert app_module.ACCEPTED_IMAGE_TYPES == ["png", "jpg", "jpeg", "webp"]
+
+    def test_translation_label(self, app_module):
+        assert "0.875rem" in app_module.TRANSLATION_LABEL
+        assert "<label" in app_module.TRANSLATION_LABEL
 
 
 class TestLanguageConfiguration:
@@ -390,6 +396,25 @@ class TestTranslateMulti:
         _, _, result = results[0]
         assert result.response == "translated text"
 
+    def test_mismatched_lengths_raises(self, patched_translate_multi):
+        with pytest.raises(ValueError):
+            patched_translate_multi["translate_multi"](
+                "Hello", "English", "en", ["Spanish", "French"], ["es"]
+            )
+
+    def test_results_preserve_input_order(self, patched_translate_multi):
+        results = patched_translate_multi["translate_multi"](
+            "Hello",
+            "English",
+            "en",
+            ["Spanish", "French", "German"],
+            ["es", "fr", "de"],
+        )
+        langs = [lang for lang, _, _ in results]
+        codes = [code for _, code, _ in results]
+        assert langs == ["Spanish", "French", "German"]
+        assert codes == ["es", "fr", "de"]
+
 
 class TestMetricHelpers:
     def test_tokens_per_sec_normal(self, app_module):
@@ -420,6 +445,16 @@ class TestMetricHelpers:
 
     def test_word_count_whitespace(self, app_module):
         assert app_module.word_count("   ") == 0
+
+    def test_tokens_per_sec_both_zero(self, app_module):
+        assert app_module.compute_tokens_per_sec(0, 0) == 0.0
+
+    def test_char_ratio_expansion(self, app_module):
+        # "hi" (2) -> "hola mundo" (10) = 5.0
+        assert app_module.compute_char_ratio("hi", "hola mundo") == 5.0
+
+    def test_word_count_multiple_spaces(self, app_module):
+        assert app_module.word_count("hello   world   foo") == 3
 
 
 class TestLoadModel:
