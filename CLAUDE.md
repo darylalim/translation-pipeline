@@ -39,7 +39,7 @@ Streamlit app for translating text and images using Google's [TranslateGemma 4B]
 
 `LANGUAGES` maps language name to BCP-47 code. `SOURCE_LANGS` is derived as a sorted list of all language names.
 
-All languages are bidirectional with English: Chinese (zh), Dutch (nl), French (fr), German (de), Indonesian (id), Italian (it), Spanish (es), Vietnamese (vi)
+All languages are bidirectional with English: Chinese (zh), Dutch (nl), French (fr), German (de), Indonesian (id), Italian (it), Spanish (es), Vietnamese (vi).
 
 ### Model Loading
 
@@ -89,7 +89,19 @@ Accepted image types: PNG, JPG, JPEG, WEBP.
 
 ### History
 
-Session-only translation history stored in `st.session_state["history"]` as a list of dicts. Each entry contains: `mode`, `source_lang`, `source_code`, `target_langs`, `target_codes`, `source_text`, `results` (list of `asdict(TranslationResult)`), `total_duration`, `load_duration`, `timestamp` (ISO 8601). Multi-pair entries store multiple targets/results. Sidebar renders history most-recent-first with clickable restore. Export downloads all entries as JSON.
+Session-only translation history stored in `st.session_state["history"]` as a list of dicts.
+
+Each entry contains:
+
+- `mode` — `"text"` or `"image"`
+- `source_lang`, `source_code` — source language name and BCP-47 code
+- `target_langs`, `target_codes` — lists of target language names and codes
+- `source_text` — input text or image filename
+- `results` — list of `asdict(TranslationResult)`
+- `total_duration`, `load_duration` — nanoseconds
+- `timestamp` — ISO 8601
+
+Multi-pair entries store multiple targets/results. Sidebar renders history most-recent-first with clickable restore. Export downloads all entries as JSON.
 
 ### Output
 
