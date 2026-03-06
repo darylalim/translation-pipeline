@@ -6,6 +6,9 @@ Streamlit app for translating text and images using Google's [TranslateGemma 4B]
 
 - **Text translation** — translate text between supported languages
 - **Image translation** — extract and translate text from uploaded images (PNG, JPG, JPEG, WEBP)
+- **Multi-pair translation** — translate text to multiple target languages in one batch
+- **Session history** — sidebar log of all translations with click-to-restore and JSON export
+- **Performance metrics** — tokens/sec, character ratio, word counts, and detailed timing breakdowns
 
 ## Supported Languages
 
