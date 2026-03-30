@@ -377,20 +377,6 @@ class TestTranslateImage:
         assert patched_translate_image["model"].generate.call_count == 1
 
 
-class TestWordCount:
-    def test_word_count(self, app_module):
-        assert app_module.word_count("hello world foo") == 3
-
-    def test_word_count_empty(self, app_module):
-        assert app_module.word_count("") == 0
-
-    def test_word_count_whitespace(self, app_module):
-        assert app_module.word_count("   ") == 0
-
-    def test_word_count_multiple_spaces(self, app_module):
-        assert app_module.word_count("hello   world   foo") == 3
-
-
 class TestLoadModel:
     def test_returns_4_tuple(self, app_module):
         mock_proc = self._make_processor()

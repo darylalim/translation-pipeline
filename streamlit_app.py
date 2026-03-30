@@ -44,10 +44,6 @@ class TranslationResult:
     eval_duration: int
 
 
-def word_count(text: str) -> int:
-    return len(text.split()) if text.strip() else 0
-
-
 def build_prompt(
     text: str,
     src_lang: str,
@@ -253,7 +249,7 @@ with text_tab:
             height=150,
             placeholder=f"Enter {source} text to translate...",
         )
-        st.caption(f"{word_count(text)} words \u00b7 {len(text)} characters")
+        st.caption(str(len(text)))
         translate_text_clicked = st.button(
             "Translate",
             type="primary",
