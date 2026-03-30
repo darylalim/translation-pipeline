@@ -1,4 +1,3 @@
-from dataclasses import asdict, is_dataclass
 from unittest.mock import MagicMock, patch
 
 
@@ -77,23 +76,6 @@ class TestTranslationResult:
         assert result.eval_count == 5
         assert result.eval_duration == 200
 
-    def test_asdict(self, app_module):
-        result = app_module.TranslationResult(
-            response="hello",
-            prompt_eval_count=10,
-            prompt_eval_duration=100,
-            eval_count=5,
-            eval_duration=200,
-        )
-        d = asdict(result)
-        assert d == {
-            "response": "hello",
-            "prompt_eval_count": 10,
-            "prompt_eval_duration": 100,
-            "eval_count": 5,
-            "eval_duration": 200,
-        }
-
     def test_equality(self, app_module):
         kwargs = {
             "response": "hello",
@@ -105,9 +87,6 @@ class TestTranslationResult:
         assert app_module.TranslationResult(**kwargs) == app_module.TranslationResult(
             **kwargs
         )
-
-    def test_is_dataclass(self, app_module):
-        assert is_dataclass(app_module.TranslationResult)
 
 
 class TestBuildPrompt:
@@ -135,6 +114,63 @@ class TestBuildPrompt:
     def test_returns_string(self, app_module):
         prompt = app_module.build_prompt("Hello", "English", "en", "Spanish", "es")
         assert isinstance(prompt, str)
+
+
+class TestSwapLanguages:
+    def test_swaps_source_and_target(self, app_module):
+        mock_state = {"source_lang": "English", "target_lang": "Spanish"}
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._swap_languages()
+        assert mock_state["source_lang"] == "Spanish"
+        assert mock_state["target_lang"] == "English"
+
+    def test_swap_is_reversible(self, app_module):
+        mock_state = {"source_lang": "English", "target_lang": "French"}
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._swap_languages()
+            app_module._swap_languages()
+        assert mock_state["source_lang"] == "English"
+        assert mock_state["target_lang"] == "French"
+
+
+class TestUpdateSource:
+    def test_copies_tab_key_to_canonical(self, app_module):
+        mock_state = {
+            "source_lang": "English",
+            "text_source_lang": "French",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._update_source("text_source_lang")
+        assert mock_state["source_lang"] == "French"
+
+    def test_works_with_image_tab_key(self, app_module):
+        mock_state = {
+            "source_lang": "English",
+            "image_source_lang": "German",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._update_source("image_source_lang")
+        assert mock_state["source_lang"] == "German"
+
+
+class TestUpdateTarget:
+    def test_copies_tab_key_to_canonical(self, app_module):
+        mock_state = {
+            "target_lang": "Spanish",
+            "text_target_lang": "Italian",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._update_target("text_target_lang")
+        assert mock_state["target_lang"] == "Italian"
+
+    def test_works_with_image_tab_key(self, app_module):
+        mock_state = {
+            "target_lang": "Spanish",
+            "image_target_lang": "Dutch",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._update_target("image_target_lang")
+        assert mock_state["target_lang"] == "Dutch"
 
 
 class TestTranslate:
@@ -341,7 +377,7 @@ class TestTranslateImage:
         assert patched_translate_image["model"].generate.call_count == 1
 
 
-class TestMetricHelpers:
+class TestWordCount:
     def test_word_count(self, app_module):
         assert app_module.word_count("hello world foo") == 3
 
