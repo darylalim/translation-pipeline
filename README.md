@@ -1,4 +1,4 @@
-# Translation Pipeline
+# TranslateGemma Translate
 
 Streamlit app for translating text and images using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model with local GPU inference.
 
@@ -6,6 +6,7 @@ Streamlit app for translating text and images using Google's [TranslateGemma 4B]
 
 - **Text translation** — translate text between supported languages (up to 5,000 characters)
 - **Image translation** — extract and translate text from uploaded images (PNG, JPG, JPEG, WEBP)
+- **Swap languages** — swap source and target languages, moving translation output to source input
 - **Copy to clipboard** — copy translation output with one click
 - **Download as text** — download translation output as a `.txt` file
 

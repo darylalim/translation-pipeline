@@ -1,4 +1,4 @@
-# Translation Pipeline
+# TranslateGemma Translate
 
 Streamlit app for translating text and images using Google's [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it) model with local GPU inference.
 
@@ -65,17 +65,20 @@ Accepted image types: PNG, JPG, JPEG, WEBP.
 
 ### UI
 
-- Input mode: `st.tabs(["Text", "Image"])` — tabs appear first, language selectors are inside each tab
-- Language selectors: 3-column `[5, 1, 5]` layout with swap button in the middle, inside each tab
+- Input mode: `st.tabs(["Text", "Images"])` — tabs appear first, language selectors are inside each tab
+- Language selectors: 3-column `[10, 1, 10]` layout with swap button (`:material/swap_horiz:`) in the middle, labels hidden via `label_visibility="collapsed"`
 - Language state shared between tabs via canonical `source_lang`/`target_lang` session state with tab-specific widget keys synced via `on_change` callbacks
-- Text tab: 2-column side-by-side; `st.text_area` (no placeholder, `max_chars=5000`) for input, disabled `st.text_area` (placeholder "Translation") for output
-- Below text input: clear button (`:material/close:` icon, left), character count number (right)
-- Below text/image output: copy button (`:material/content_copy:` icon), download button (`:material/download:` icon), right-aligned
+- Swap button moves translation output to source input and clears the result
+- Text tab: 2-column side-by-side; `st.text_area` (no placeholder, `max_chars=5000`, height 300) for input, disabled `st.text_area` (placeholder "Translation", height 300) for output
+- Output text areas use `st.session_state` to set value (not the `value` parameter) to avoid stale widget state
+- Below text input: translate button (primary, left) and clear button (`:material/close:`, right) on same row `[3, 1, 6]`
+- Below text/image output: copy button (`:material/content_copy:`), download button (`:material/download:`), right-aligned `[18, 1, 1]`
+- All icon buttons use `type="tertiary"` (no outline) with tooltip via `help`
 - Image tab: `st.file_uploader` + caption for supported types + `st.image` preview (left), disabled `st.text_area` output (right)
-- Translate button: auto-width, left-aligned (both tabs)
+- Translate button: primary, left-aligned (both tabs)
 - Copy uses `streamlit.components.v1.html` with JS clipboard API
 - Download uses `st.download_button` with `mime="text/plain"`
-- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `image_translation_result`, `source_text`
+- `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `image_translation_result`, `source_text`, `text_output`, `image_output`
 - `st.session_state` keys (tab-specific widget keys): `text_source_lang`, `text_target_lang`, `image_source_lang`, `image_target_lang`
 
 ## Known Issues
