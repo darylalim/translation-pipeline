@@ -32,7 +32,8 @@ def app_module():
         MagicMock(),
     )
 
-    # Column calls (language selectors inside each tab now):
+    # Column calls are position-dependent — update this list if st.columns
+    # calls are added, removed, or reordered in streamlit_app.py:
     # 1. Text tab language selectors [5, 1, 5]
     # 2. Text tab content [2]
     # 3. Text tab clear/count [2]
