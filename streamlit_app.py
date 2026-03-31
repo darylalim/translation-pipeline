@@ -166,8 +166,8 @@ def translate_image(
     )
 
 
-st.set_page_config(page_title="Translation Pipeline", page_icon="\U0001f310")
-st.title("Translation Pipeline")
+st.set_page_config(page_title="TranslateGemma Translate", page_icon="\U0001f310")
+st.title("TranslateGemma Translate")
 
 # --- Session state defaults ---
 if "source_lang" not in st.session_state:
@@ -206,7 +206,7 @@ def _update_target(key: str) -> None:
 
 
 # --- Tabs above language selectors ---
-text_tab, image_tab = st.tabs(["Text", "Image"])
+text_tab, image_tab = st.tabs(["Text", "Images"])
 
 # --- Text tab ---
 with text_tab:
