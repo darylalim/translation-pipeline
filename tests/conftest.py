@@ -18,18 +18,21 @@ def app_module():
 
     # Text tab columns
     text_left_col, text_right_col = MagicMock(), MagicMock()
+    text_clear_col, text_count_col = MagicMock(), MagicMock()
     # Image tab columns
     img_left_col, img_right_col = MagicMock(), MagicMock()
 
     # Column calls (language selectors inside each tab now):
     # 1. Text tab language selectors [5, 1, 5]
     # 2. Text tab content [2]
-    # 3. Image tab language selectors [5, 1, 5]
-    # 4. Image tab content [2]
+    # 3. Text tab clear/count [2]
+    # 4. Image tab language selectors [5, 1, 5]
+    # 5. Image tab content [2]
     _columns_calls = iter(
         [
             (col1, col_swap, col2),
             (text_left_col, text_right_col),
+            (text_clear_col, text_count_col),
             (col1, col_swap, col2),
             (img_left_col, img_right_col),
         ]

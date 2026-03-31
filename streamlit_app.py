@@ -246,14 +246,25 @@ with text_tab:
     with left_col:
         text = st.text_area(
             "Source text",
-            height=150,
-            placeholder=f"Enter {source} text to translate...",
+            height=200,
+            max_chars=5000,
+            key="source_text",
+            label_visibility="collapsed",
         )
-        st.caption(str(len(text)))
+        clear_col, count_col = st.columns(2)
+        with clear_col:
+            if st.button(":material/close:", key="clear_text"):
+                st.session_state["source_text"] = ""
+                st.rerun()
+        with count_col:
+            st.markdown(
+                f'<p style="text-align:right;color:#888;font-size:0.875em">'
+                f"{len(text)}</p>",
+                unsafe_allow_html=True,
+            )
         translate_text_clicked = st.button(
             "Translate",
             type="primary",
-            use_container_width=True,
             key="translate_text",
         )
 
