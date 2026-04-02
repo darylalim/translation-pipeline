@@ -13,14 +13,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
 # OS
 .DS_Store
 
 # Project
 .worktrees/
 .superpowers/
-docs/
