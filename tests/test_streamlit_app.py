@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 
@@ -161,6 +162,36 @@ class TestTranslate:
     def test_generate_called_exactly_once(self, app_module, patched_translate):
         patched_translate["translate"]("Hello", "English", "en", "Spanish", "es")
         assert app_module.generate.call_count == 1
+
+
+class TestClipboardSanitization:
+    """Verify json.dumps + < escaping produces safe JS string literals.
+
+    The clipboard copy injects translation output into an inline <script> tag.
+    These tests document the security assumptions for that code path.
+    """
+
+    def test_escapes_double_quotes(self):
+        safe = json.dumps('text with "quotes"').replace("<", "\\u003c")
+        assert '\\"' in safe
+
+    def test_escapes_backslashes(self):
+        safe = json.dumps("text with \\backslash").replace("<", "\\u003c")
+        assert "\\\\" in safe
+
+    def test_escapes_newlines(self):
+        safe = json.dumps("line1\nline2").replace("<", "\\u003c")
+        assert "\\n" in safe
+
+    def test_escapes_script_close_tag(self):
+        safe = json.dumps("</script>").replace("<", "\\u003c")
+        assert "</script>" not in safe
+        assert "\\u003c" in safe
+
+    def test_result_is_valid_js_string_literal(self):
+        safe = json.dumps("hello world").replace("<", "\\u003c")
+        assert safe.startswith('"')
+        assert safe.endswith('"')
 
 
 class TestLoadModel:
