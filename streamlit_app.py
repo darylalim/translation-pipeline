@@ -162,6 +162,7 @@ with btn_clear_col:
         key="clear_text",
     ):
         st.session_state["source_text"] = ""
+        st.session_state.pop("translation_result", None)
         st.rerun()
 with copy_col:
     if st.button(
