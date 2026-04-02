@@ -48,6 +48,7 @@ def build_prompt(
 
 @st.cache_resource
 def load_model() -> tuple[Any, Any]:
+    # Returns (mlx.nn.Module, mlx_lm.tokenizer_utils.TokenizerWrapper)
     model, tokenizer = load(MODEL_ID)  # type: ignore[invalid-assignment]
     return model, tokenizer
 
@@ -174,13 +175,16 @@ with copy_col:
         key="copy_text",
     ):
         if prev_response:
-            # json.dumps produces a JS-safe string literal
+            # json.dumps escapes quotes, backslashes, and control characters,
+            # producing a valid JS string literal. We also escape < to \u003c
+            # to prevent </script> from prematurely closing the script tag.
+            safe_js = json.dumps(prev_response).replace("<", "\\u003c")
             components.html(
                 "<script>"
                 "try{window.parent.navigator.clipboard.writeText("
-                f"{json.dumps(prev_response)});}}"
+                f"{safe_js});}}"
                 "catch(e){var t=document.createElement('textarea');"
-                f"t.value={json.dumps(prev_response)};"
+                f"t.value={safe_js};"
                 "document.body.appendChild(t);t.select();"
                 "document.execCommand('copy');"
                 "document.body.removeChild(t);}"
