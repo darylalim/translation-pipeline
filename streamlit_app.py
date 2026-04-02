@@ -48,7 +48,7 @@ def build_prompt(
 
 @st.cache_resource
 def load_model() -> tuple[Any, Any]:
-    model, tokenizer = load(MODEL_ID)
+    model, tokenizer = load(MODEL_ID)  # type: ignore[invalid-assignment]
     return model, tokenizer
 
 
