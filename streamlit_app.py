@@ -48,9 +48,7 @@ def build_prompt(
 
 @st.cache_resource
 def load_model() -> tuple[Any, Any]:
-    # Returns (mlx.nn.Module, mlx_lm.tokenizer_utils.TokenizerWrapper)
-    model, tokenizer = load(MODEL_ID)  # type: ignore[invalid-assignment]
-    return model, tokenizer
+    return load(MODEL_ID)  # type: ignore[return-value]
 
 
 def translate(
