@@ -85,7 +85,10 @@ except Exception as e:
 
 def _swap_languages() -> None:
     state = st.session_state
-    state["source_lang"], state["target_lang"] = state["target_lang"], state["source_lang"]
+    state["source_lang"], state["target_lang"] = (
+        state["target_lang"],
+        state["source_lang"],
+    )
     if "translation_result" in state:
         state["source_text"] = state.pop("translation_result")
 
@@ -145,60 +148,64 @@ with right_col:
     )
 
 # --- Buttons ---
-btn_translate_col, btn_clear_col, _, copy_col, download_col = st.columns(
-    [3, 1, 14, 1, 1]
-)
-with btn_translate_col:
-    translate_clicked = st.button(
-        "Translate",
-        type="primary",
-        key="translate_text",
-    )
-with btn_clear_col:
-    if st.button(
-        ":material/close:",
-        type="tertiary",
-        help="Clear source text",
-        key="clear_text",
-    ):
-        st.session_state["source_text"] = ""
-        st.session_state.pop("translation_result", None)
-        st.rerun()
-with copy_col:
-    if st.button(
-        ":material/content_copy:",
-        type="tertiary",
-        help="Copy translation",
-        key="copy_text",
-    ):
-        if prev_response:
-            # json.dumps escapes quotes, backslashes, and control characters,
-            # producing a valid JS string literal. We also escape < to \u003c
-            # to prevent </script> from prematurely closing the script tag.
-            safe_js = json.dumps(prev_response).replace("<", "\\u003c")
-            components.html(
-                "<script>"
-                "try{window.parent.navigator.clipboard.writeText("
-                f"{safe_js});}}"
-                "catch(e){var t=document.createElement('textarea');"
-                f"t.value={safe_js};"
-                "document.body.appendChild(t);t.select();"
-                "document.execCommand('copy');"
-                "document.body.removeChild(t);}"
-                "</script>",
-                height=0,
-            )
-with download_col:
-    if prev_response:
-        st.download_button(
-            label=":material/download:",
-            type="tertiary",
-            help="Download translation",
-            data=prev_response,
-            file_name="translation.txt",
-            mime="text/plain",
-            key="download_text",
+btn_left_col, btn_right_col = st.columns(2)
+
+with btn_left_col:
+    btn_translate_col, btn_clear_col = st.columns([3, 1])
+    with btn_translate_col:
+        translate_clicked = st.button(
+            "Translate",
+            type="primary",
+            key="translate_text",
         )
+    with btn_clear_col:
+        if st.button(
+            ":material/close:",
+            type="tertiary",
+            help="Clear source text",
+            key="clear_text",
+        ):
+            st.session_state["source_text"] = ""
+            st.session_state.pop("translation_result", None)
+            st.rerun()
+
+with btn_right_col:
+    _, copy_col, download_col = st.columns([6, 1, 1])
+    with copy_col:
+        if st.button(
+            ":material/content_copy:",
+            type="tertiary",
+            help="Copy translation",
+            key="copy_text",
+        ):
+            if prev_response:
+                # json.dumps escapes quotes, backslashes, and control characters,
+                # producing a valid JS string literal. We also escape < to \u003c
+                # to prevent </script> from prematurely closing the script tag.
+                safe_js = json.dumps(prev_response).replace("<", "\\u003c")
+                components.html(
+                    "<script>"
+                    "try{window.parent.navigator.clipboard.writeText("
+                    f"{safe_js});}}"
+                    "catch(e){var t=document.createElement('textarea');"
+                    f"t.value={safe_js};"
+                    "document.body.appendChild(t);t.select();"
+                    "document.execCommand('copy');"
+                    "document.body.removeChild(t);}"
+                    "</script>",
+                    height=0,
+                )
+    with download_col:
+        if prev_response:
+            st.download_button(
+                label=":material/download:",
+                type="tertiary",
+                help="Download translation",
+                data=prev_response,
+                file_name="translation.txt",
+                mime="text/plain",
+                key="download_text",
+            )
 
 if translate_clicked:
     if not text.strip():
