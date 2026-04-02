@@ -16,37 +16,25 @@ def app_module():
     col1.selectbox.return_value = "English"
     col2.selectbox.return_value = "Spanish"
 
-    # Text tab columns
-    text_left_col, text_right_col = MagicMock(), MagicMock()
-    text_btn_translate_col = MagicMock()
-    text_btn_clear_col = MagicMock()
-    text_btn_spacer_col = MagicMock()
-    text_copy_col = MagicMock()
-    text_download_col = MagicMock()
-    # Image tab columns
-    img_left_col, img_right_col = MagicMock(), MagicMock()
-    img_btn_translate_col = MagicMock()
-    img_btn_spacer1_col = MagicMock()
-    img_btn_spacer2_col = MagicMock()
-    img_copy_col = MagicMock()
-    img_download_col = MagicMock()
+    # Content columns
+    left_col, right_col = MagicMock(), MagicMock()
+    # Button columns
+    btn_translate_col = MagicMock()
+    btn_clear_col = MagicMock()
+    btn_spacer_col = MagicMock()
+    copy_col = MagicMock()
+    download_col = MagicMock()
 
     # Column calls are position-dependent — update this list if st.columns
     # calls are added, removed, or reordered in streamlit_app.py:
-    # 1. Text tab language selectors [10, 1, 10]
-    # 2. Text tab content [2]
-    # 3. Text tab translate/clear/copy/download [3, 1, 14, 1, 1]
-    # 4. Image tab language selectors [10, 1, 10]
-    # 5. Image tab content [2]
-    # 6. Image tab translate/copy/download [3, 1, 14, 1, 1]
+    # 1. Language selectors [10, 1, 10]
+    # 2. Content columns [2]
+    # 3. Buttons [3, 1, 14, 1, 1]
     _columns_calls = iter(
         [
             (col1, col_swap, col2),
-            (text_left_col, text_right_col),
-            (text_btn_translate_col, text_btn_clear_col, text_btn_spacer_col, text_copy_col, text_download_col),
-            (col1, col_swap, col2),
-            (img_left_col, img_right_col),
-            (img_btn_translate_col, img_btn_spacer1_col, img_btn_spacer2_col, img_copy_col, img_download_col),
+            (left_col, right_col),
+            (btn_translate_col, btn_clear_col, btn_spacer_col, copy_col, download_col),
         ]
     )
 
@@ -62,17 +50,7 @@ def app_module():
     mock_st.columns = MagicMock(side_effect=_mock_columns)
     mock_st.button.return_value = False
 
-    # Mock st.tabs to return context managers
-    text_tab = MagicMock()
-    image_tab = MagicMock()
-    mock_st.tabs.return_value = [text_tab, image_tab]
-
-    # file_uploader returns None so Image.open is not called at import time
-    mock_st.file_uploader.return_value = None
-
-    mock_torch = MagicMock()
-    mock_dotenv = MagicMock()
-    mock_transformers = MagicMock()
+    mock_mlx_lm = MagicMock()
     mock_components_v1 = MagicMock()
     mock_components = MagicMock()
     mock_components.v1 = mock_components_v1
@@ -84,9 +62,7 @@ def app_module():
         "streamlit": mock_st,
         "streamlit.components": mock_components,
         "streamlit.components.v1": mock_components_v1,
-        "torch": mock_torch,
-        "dotenv": mock_dotenv,
-        "transformers": mock_transformers,
+        "mlx_lm": mock_mlx_lm,
     }
 
     originals = {}
@@ -108,93 +84,24 @@ def app_module():
 
 
 @pytest.fixture()
-def mock_processor():
-    """MagicMock processor with configured tokenizer."""
-    processor = MagicMock()
-
-    mock_input_ids = MagicMock()
-    mock_input_ids.shape = (1, 10)
-
-    mock_inputs = MagicMock()
-    mock_inputs.__getitem__ = lambda self, key: (
-        mock_input_ids if key == "input_ids" else MagicMock()
-    )
-    mock_inputs.to.return_value = mock_inputs
-
-    processor.tokenizer.return_value = mock_inputs
-    processor.tokenizer.decode.return_value = "  translated text  "
-    processor.tokenizer.pad_token_id = 0
-    processor.tokenizer.convert_tokens_to_ids.return_value = 107
-
-    return processor
-
-
-@pytest.fixture()
-def mock_model():
-    """MagicMock model with configured generate output."""
-    model = MagicMock()
-    model.device = "cpu"
-
-    mock_generated = MagicMock()
-    mock_generated.shape = (5,)
-
-    mock_output_sequence = MagicMock()
-    mock_output_sequence.__getitem__ = lambda self, key: mock_generated
-    mock_output = MagicMock()
-    mock_output.__getitem__ = lambda self, key: mock_output_sequence
-
-    model.generate.return_value = mock_output
-
-    return model
-
-
-@pytest.fixture()
-def patched_translate(app_module, mock_model, mock_processor):
-    """Patch load_model for translation tests."""
-    with patch.object(
-        app_module,
-        "load_model",
-        return_value=(mock_model, mock_processor, 107, 5_000_000),
+def patched_translate(app_module):
+    """Patch load_model and generate for translation tests."""
+    mock_model = MagicMock()
+    mock_tokenizer = MagicMock()
+    with (
+        patch.object(
+            app_module,
+            "load_model",
+            return_value=(mock_model, mock_tokenizer),
+        ),
+        patch.object(
+            app_module,
+            "generate",
+            return_value="translated text",
+        ),
     ):
         yield {
             "translate": app_module.translate,
             "model": mock_model,
-            "processor": mock_processor,
-        }
-
-
-@pytest.fixture()
-def mock_processor_image():
-    """MagicMock processor configured for image translation."""
-    processor = MagicMock()
-
-    mock_input_ids = MagicMock()
-    mock_input_ids.shape = (1, 266)  # 256 image tokens + 10 prompt tokens
-
-    mock_inputs = MagicMock()
-    mock_inputs.__getitem__ = lambda self, key: (
-        mock_input_ids if key == "input_ids" else MagicMock()
-    )
-    mock_inputs.to.return_value = mock_inputs
-
-    processor.apply_chat_template.return_value = mock_inputs
-    processor.tokenizer.decode.return_value = "  translated text  "
-    processor.tokenizer.pad_token_id = 0
-    processor.tokenizer.convert_tokens_to_ids.return_value = 107
-
-    return processor
-
-
-@pytest.fixture()
-def patched_translate_image(app_module, mock_model, mock_processor_image):
-    """Patch load_model for image translation tests."""
-    with patch.object(
-        app_module,
-        "load_model",
-        return_value=(mock_model, mock_processor_image, 107, 5_000_000),
-    ):
-        yield {
-            "translate_image": app_module.translate_image,
-            "model": mock_model,
-            "processor": mock_processor_image,
+            "tokenizer": mock_tokenizer,
         }
