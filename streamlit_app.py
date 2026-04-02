@@ -189,15 +189,16 @@ with copy_col:
                 height=0,
             )
 with download_col:
-    st.download_button(
-        label=":material/download:",
-        type="tertiary",
-        help="Download translation",
-        data=prev_response or "",
-        file_name="translation.txt",
-        mime="text/plain",
-        key="download_text",
-    )
+    if prev_response:
+        st.download_button(
+            label=":material/download:",
+            type="tertiary",
+            help="Download translation",
+            data=prev_response,
+            file_name="translation.txt",
+            mime="text/plain",
+            key="download_text",
+        )
 
 if translate_clicked:
     if not text.strip():
