@@ -70,10 +70,8 @@ st.set_page_config(page_title="TranslateGemma Translate", page_icon="\U0001f310"
 st.title("TranslateGemma Translate")
 
 # --- Session state defaults ---
-if "source_lang" not in st.session_state:
-    st.session_state["source_lang"] = "English"
-if "target_lang" not in st.session_state:
-    st.session_state["target_lang"] = "Spanish"
+st.session_state.setdefault("source_lang", "English")
+st.session_state.setdefault("target_lang", "Spanish")
 
 # --- Model loading ---
 try:
