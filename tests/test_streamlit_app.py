@@ -297,11 +297,11 @@ class TestClipboardSanitization:
 class TestButtonLayout:
     def test_button_left_group_columns(self, app_module):
         calls = app_module.st.columns.call_args_list
-        assert calls[2] == call([3, 2, 1])
+        assert calls[2] == call([3, 1, 2])
 
     def test_button_right_group_columns(self, app_module):
         calls = app_module.st.columns.call_args_list
-        assert calls[3] == call([1, 3, 2])
+        assert calls[3] == call([2, 3, 2])
 
 
 class TestLoadModel:
