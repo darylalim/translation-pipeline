@@ -295,13 +295,21 @@ class TestClipboardSanitization:
 
 
 class TestButtonLayout:
-    def test_button_left_group_columns(self, app_module):
+    def test_columns_called_three_times(self, app_module):
         calls = app_module.st.columns.call_args_list
-        assert calls[2] == call([3, 1, 2])
+        assert len(calls) == 3
 
-    def test_button_right_group_columns(self, app_module):
+    def test_language_selector_columns(self, app_module):
         calls = app_module.st.columns.call_args_list
-        assert calls[3] == call([2, 3, 2])
+        assert calls[0] == call([10, 1, 10])
+
+    def test_content_columns(self, app_module):
+        calls = app_module.st.columns.call_args_list
+        assert calls[1] == call(2)
+
+    def test_right_button_columns(self, app_module):
+        calls = app_module.st.columns.call_args_list
+        assert calls[2] == call(2)
 
 
 class TestLoadModel:
