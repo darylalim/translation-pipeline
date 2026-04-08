@@ -18,25 +18,27 @@ def app_module():
 
     # Content columns
     left_col, right_col = MagicMock(), MagicMock()
-    # Button columns — left nested [3, 1] (inside left_col)
+    # Button columns — left nested [3, 2, 1] (inside left_col)
     btn_translate_col = MagicMock()
+    btn_left_spacer = MagicMock()
     btn_clear_col = MagicMock()
-    # Button columns — right nested [1, 1] (inside right_col)
+    # Button columns — right nested [1, 4, 1] (inside right_col)
     copy_col = MagicMock()
+    btn_right_spacer = MagicMock()
     download_col = MagicMock()
 
     # Column calls are position-dependent — update this list if st.columns
     # calls are added, removed, or reordered in streamlit_app.py:
     # 1. Language selectors [10, 1, 10]
     # 2. Content columns [2]
-    # 3. Buttons left nested [3, 1]
-    # 4. Buttons right nested [1, 1]
+    # 3. Buttons left nested [3, 2, 1]
+    # 4. Buttons right nested [1, 4, 1]
     _columns_calls = iter(
         [
             (col1, col_swap, col2),
             (left_col, right_col),
-            (btn_translate_col, btn_clear_col),
-            (copy_col, download_col),
+            (btn_translate_col, btn_left_spacer, btn_clear_col),
+            (copy_col, btn_right_spacer, download_col),
         ]
     )
 
