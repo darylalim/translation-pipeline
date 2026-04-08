@@ -136,22 +136,12 @@ with left_col:
         label_visibility="collapsed",
     )
 
-    btn_translate_col, _, btn_clear_col = st.columns([3, 1, 2])
-    with btn_translate_col:
-        translate_clicked = st.button(
-            "Translate",
-            type="primary",
-            key="translate_text",
-        )
-    with btn_clear_col:
-        if st.button(
-            "Clear",
-            type="secondary",
-            key="clear_text",
-        ):
-            st.session_state["source_text"] = ""
-            st.session_state.pop("translation_result", None)
-            st.rerun()
+    translate_clicked = st.button(
+        "Translate",
+        type="primary",
+        key="translate_text",
+        use_container_width=True,
+    )
 
 prev_response = st.session_state.get("translation_result", "")
 
@@ -166,40 +156,42 @@ with right_col:
         key="text_output",
     )
 
-    copy_col, _, download_col = st.columns([2, 3, 2])
+    copy_col, download_col = st.columns(2)
     with copy_col:
         if st.button(
             "Copy",
             type="secondary",
             key="copy_text",
+            disabled=not prev_response,
+            use_container_width=True,
         ):
-            if prev_response:
-                # json.dumps escapes quotes, backslashes, and control characters,
-                # producing a valid JS string literal. We also escape < to \u003c
-                # to prevent </script> from prematurely closing the script tag.
-                safe_js = json.dumps(prev_response).replace("<", "\\u003c")
-                components.html(
-                    "<script>"
-                    "try{window.parent.navigator.clipboard.writeText("
-                    f"{safe_js});}}"
-                    "catch(e){var t=document.createElement('textarea');"
-                    f"t.value={safe_js};"
-                    "document.body.appendChild(t);t.select();"
-                    "document.execCommand('copy');"
-                    "document.body.removeChild(t);}"
-                    "</script>",
-                    height=0,
-                )
-    with download_col:
-        if prev_response:
-            st.download_button(
-                label="Download",
-                type="secondary",
-                data=prev_response,
-                file_name="translation.txt",
-                mime="text/plain",
-                key="download_text",
+            # json.dumps escapes quotes, backslashes, and control characters,
+            # producing a valid JS string literal. We also escape < to \u003c
+            # to prevent </script> from prematurely closing the script tag.
+            safe_js = json.dumps(prev_response).replace("<", "\\u003c")
+            components.html(
+                "<script>"
+                "try{window.parent.navigator.clipboard.writeText("
+                f"{safe_js});}}"
+                "catch(e){var t=document.createElement('textarea');"
+                f"t.value={safe_js};"
+                "document.body.appendChild(t);t.select();"
+                "document.execCommand('copy');"
+                "document.body.removeChild(t);}"
+                "</script>",
+                height=0,
             )
+    with download_col:
+        st.download_button(
+            label="Download",
+            type="secondary",
+            data=prev_response if prev_response else "",
+            file_name="translation.txt",
+            mime="text/plain",
+            key="download_text",
+            disabled=not prev_response,
+            use_container_width=True,
+        )
 
 if translate_clicked:
     if not text.strip():
