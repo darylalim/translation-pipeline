@@ -1,6 +1,6 @@
 [project]
 name = "translategemma-translate"
-version = "0.6.2"
+version = "0.6.3"
 description = "TranslateGemma Translate — Streamlit app for translating text using mlx-community/translategemma-4b-it-8bit with Apple Silicon inference"
 readme = "README.md"
 license = "MIT"
