@@ -146,8 +146,7 @@ with left_col:
     with btn_clear_col:
         if st.button(
             "Clear",
-            type="tertiary",
-            help="Clear source text",
+            type="secondary",
             key="clear_text",
         ):
             st.session_state["source_text"] = ""
@@ -167,12 +166,11 @@ with right_col:
         key="text_output",
     )
 
-    copy_col, _, download_col = st.columns([1, 4, 1])
+    copy_col, _, download_col = st.columns([1, 3, 2])
     with copy_col:
         if st.button(
             "Copy",
-            type="tertiary",
-            help="Copy translation",
+            type="secondary",
             key="copy_text",
         ):
             if prev_response:
@@ -196,8 +194,7 @@ with right_col:
         if prev_response:
             st.download_button(
                 label="Download",
-                type="tertiary",
-                help="Download translation",
+                type="secondary",
                 data=prev_response,
                 file_name="translation.txt",
                 mime="text/plain",
