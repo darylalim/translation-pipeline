@@ -71,6 +71,12 @@ class TestNoOverlap:
         overlap = set(BIDIRECTIONAL) & set(FROM_ENGLISH_ONLY)
         assert not overlap, f"Overlapping keys: {overlap}"
 
+    def test_all_codes_are_unique(self):
+        from languages import ALL_LANGUAGES
+
+        codes = list(ALL_LANGUAGES.values())
+        assert len(codes) == len(set(codes)), "Duplicate language codes found"
+
 
 class TestAllLanguages:
     def test_all_languages_count(self):
