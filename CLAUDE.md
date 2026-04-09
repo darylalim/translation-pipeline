@@ -47,7 +47,7 @@ Directionality rules: bidirectional languages pair only with English (not with e
 ### UI
 
 - Language selectors: 3-column `[10, 1, 10]` layout with swap button (`:material/swap_horiz:`) in the middle, labels hidden via `label_visibility="collapsed"`
-- Swap button moves translation output to source input and clears the result
+- Swap button moves translation output to source input and clears the result; disabled when target is a from-English-only language (the only case where swap is invalid, since non-English sources always target English which is always swappable)
 - 2-column side-by-side; `st.text_area` (no placeholder, `max_chars=5000`, height 300) for input, disabled `st.text_area` (placeholder "Translation", height 300) for output
 - Output text areas use `st.session_state` to set value (not the `value` parameter) to avoid stale widget state
 - Left panel (inside `left_col`): translate button (primary, `use_container_width=True`)
