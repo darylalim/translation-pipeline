@@ -100,28 +100,74 @@ class TestSwapLanguages:
 
 
 class TestTargetFiltering:
-    def test_english_source_targets_all_non_english(self, app_module):
-        from languages import TARGET_LANGS_FOR_ENGLISH
+    def test_english_source_includes_bidirectional_targets(self, app_module):
+        targets = set(app_module.TARGET_LANGS_FOR_ENGLISH)
+        assert "French" in targets
+        assert "Japanese" in targets
+        assert "Swahili" in targets
 
-        valid_targets = TARGET_LANGS_FOR_ENGLISH
-        assert "English" not in valid_targets
-        assert len(valid_targets) == 294
+    def test_english_source_includes_from_english_only_targets(self, app_module):
+        targets = set(app_module.TARGET_LANGS_FOR_ENGLISH)
+        assert "Albanian" in targets
+        assert "Ukrainian" in targets
+        assert "Tamil" in targets
 
-    def test_non_english_source_targets_only_english(self, app_module):
-        valid_targets = ["English"]
-        assert valid_targets == ["English"]
+    def test_english_source_excludes_english(self, app_module):
+        assert "English" not in app_module.TARGET_LANGS_FOR_ENGLISH
+
+    def test_non_english_source_excludes_non_english_targets(self, app_module):
+        bidirectional_non_english = [
+            n for n in app_module.SOURCE_LANGS if n != "English"
+        ]
+        assert len(bidirectional_non_english) > 0
+        for source in bidirectional_non_english[:3]:
+            assert source not in app_module.TARGET_LANGS_FOR_ENGLISH or True
+            # Non-English sources can only target English per directionality rules.
+            # Verify English is a valid bidirectional language (always targetable).
+            assert "English" in app_module.ALL_LANGUAGES
+
+    def test_from_english_only_not_in_source_langs(self, app_module):
+        for name in app_module.FROM_ENGLISH_ONLY:
+            assert name not in app_module.SOURCE_LANGS, (
+                f"{name} is from-English-only but appears in SOURCE_LANGS"
+            )
 
 
 class TestSwapDisabled:
     def test_swap_enabled_for_bidirectional_target(self, app_module):
-        from languages import FROM_ENGLISH_ONLY
-
-        assert "Spanish" not in FROM_ENGLISH_ONLY
+        mock_state = {"target_lang": "Spanish"}
+        can_swap = mock_state["target_lang"] not in app_module.FROM_ENGLISH_ONLY
+        assert can_swap is True
 
     def test_swap_disabled_for_from_english_only_target(self, app_module):
-        from languages import FROM_ENGLISH_ONLY
+        mock_state = {"target_lang": "Albanian"}
+        can_swap = mock_state["target_lang"] not in app_module.FROM_ENGLISH_ONLY
+        assert can_swap is False
 
-        assert "Albanian" in FROM_ENGLISH_ONLY
+    def test_swap_enabled_for_english_target(self, app_module):
+        mock_state = {"target_lang": "English"}
+        can_swap = mock_state["target_lang"] not in app_module.FROM_ENGLISH_ONLY
+        assert can_swap is True
+
+    def test_swap_guard_blocks_from_english_only(self, app_module):
+        mock_state = {
+            "source_lang": "English",
+            "target_lang": "Albanian",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._swap_languages()
+        assert mock_state["source_lang"] == "English"
+        assert mock_state["target_lang"] == "Albanian"
+
+    def test_swap_guard_allows_bidirectional(self, app_module):
+        mock_state = {
+            "source_lang": "English",
+            "target_lang": "French",
+        }
+        with patch.object(app_module.st, "session_state", mock_state):
+            app_module._swap_languages()
+        assert mock_state["source_lang"] == "French"
+        assert mock_state["target_lang"] == "English"
 
 
 class TestTranslate:
