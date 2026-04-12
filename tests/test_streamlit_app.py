@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock, call, patch
 
 
@@ -300,40 +299,10 @@ class TestTranslate:
         assert result == "hola mundo"
 
 
-class TestClipboardSanitization:
-    """Verify json.dumps + < escaping produces safe JS string literals.
-
-    The clipboard copy injects translation output into an inline <script> tag.
-    These tests document the security assumptions for that code path.
-    """
-
-    def test_escapes_double_quotes(self):
-        safe = json.dumps('text with "quotes"').replace("<", "\\u003c")
-        assert '\\"' in safe
-
-    def test_escapes_backslashes(self):
-        safe = json.dumps("text with \\backslash").replace("<", "\\u003c")
-        assert "\\\\" in safe
-
-    def test_escapes_newlines(self):
-        safe = json.dumps("line1\nline2").replace("<", "\\u003c")
-        assert "\\n" in safe
-
-    def test_escapes_script_close_tag(self):
-        safe = json.dumps("</script>").replace("<", "\\u003c")
-        assert "</script>" not in safe
-        assert "\\u003c" in safe
-
-    def test_result_is_valid_js_string_literal(self):
-        safe = json.dumps("hello world").replace("<", "\\u003c")
-        assert safe.startswith('"')
-        assert safe.endswith('"')
-
-
 class TestButtonLayout:
-    def test_columns_called_three_times(self, app_module):
+    def test_columns_called_twice(self, app_module):
         calls = app_module.st.columns.call_args_list
-        assert len(calls) == 3
+        assert len(calls) == 2
 
     def test_language_selector_columns(self, app_module):
         calls = app_module.st.columns.call_args_list
@@ -342,10 +311,6 @@ class TestButtonLayout:
     def test_content_columns(self, app_module):
         calls = app_module.st.columns.call_args_list
         assert calls[1] == call(2)
-
-    def test_right_button_columns(self, app_module):
-        calls = app_module.st.columns.call_args_list
-        assert calls[2] == call(2)
 
 
 class TestLoadModel:

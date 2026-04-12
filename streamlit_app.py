@@ -1,9 +1,7 @@
-import json
 import logging
 from typing import Any
 
 import streamlit as st
-import streamlit.components.v1 as components
 from mlx_lm import generate, load
 
 from languages import (
@@ -156,42 +154,16 @@ with right_col:
         key="text_output",
     )
 
-    copy_col, download_col = st.columns(2)
-    with copy_col:
-        if st.button(
-            "Copy",
-            type="secondary",
-            key="copy_text",
-            disabled=not prev_response,
-            use_container_width=True,
-        ):
-            # json.dumps escapes quotes, backslashes, and control characters,
-            # producing a valid JS string literal. We also escape < to \u003c
-            # to prevent </script> from prematurely closing the script tag.
-            safe_js = json.dumps(prev_response).replace("<", "\\u003c")
-            components.html(
-                "<script>"
-                "try{window.parent.navigator.clipboard.writeText("
-                f"{safe_js});}}"
-                "catch(e){var t=document.createElement('textarea');"
-                f"t.value={safe_js};"
-                "document.body.appendChild(t);t.select();"
-                "document.execCommand('copy');"
-                "document.body.removeChild(t);}"
-                "</script>",
-                height=0,
-            )
-    with download_col:
-        st.download_button(
-            label="Download",
-            type="secondary",
-            data=prev_response if prev_response else "",
-            file_name="translation.txt",
-            mime="text/plain",
-            key="download_text",
-            disabled=not prev_response,
-            use_container_width=True,
-        )
+    st.download_button(
+        label="Download",
+        type="secondary",
+        data=prev_response if prev_response else "",
+        file_name="translation.txt",
+        mime="text/plain",
+        key="download_text",
+        disabled=not prev_response,
+        use_container_width=True,
+    )
 
 if translate_clicked:
     if not text.strip():

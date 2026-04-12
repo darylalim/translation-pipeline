@@ -18,20 +18,15 @@ def app_module():
 
     # Content columns
     left_col, right_col = MagicMock(), MagicMock()
-    # Button columns — right nested [2] (inside right_col)
-    copy_col = MagicMock()
-    download_col = MagicMock()
 
     # Column calls are position-dependent — update this list if st.columns
     # calls are added, removed, or reordered in streamlit_app.py:
     # 1. Language selectors [10, 1, 10]
     # 2. Content columns [2]
-    # 3. Buttons right nested [2]
     _columns_calls = iter(
         [
             (col1, col_swap, col2),
             (left_col, right_col),
-            (copy_col, download_col),
         ]
     )
 
@@ -48,17 +43,9 @@ def app_module():
     mock_st.button.return_value = False
 
     mock_mlx_lm = MagicMock()
-    mock_components_v1 = MagicMock()
-    mock_components = MagicMock()
-    mock_components.v1 = mock_components_v1
-    mock_components.__path__ = []
-    mock_st.components = mock_components
-    mock_st.__path__ = []  # make Python treat mock_st as a package
 
     patches = {
         "streamlit": mock_st,
-        "streamlit.components": mock_components,
-        "streamlit.components.v1": mock_components_v1,
         "mlx_lm": mock_mlx_lm,
     }
 
