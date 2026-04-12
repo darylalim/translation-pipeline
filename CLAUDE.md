@@ -51,8 +51,7 @@ Directionality rules: bidirectional languages pair only with English (not with e
 - 2-column side-by-side; `st.text_area` (no placeholder, `max_chars=5000`, height 300) for input, disabled `st.text_area` (placeholder "Translation", height 300) for output
 - Output text areas use `st.session_state` to set value (not the `value` parameter) to avoid stale widget state
 - Left panel (inside `left_col`): translate button (primary, `use_container_width=True`)
-- Right panel (inside `right_col`): copy button ("Copy", secondary) + download button ("Download", secondary) in equal `st.columns(2)`, both `disabled` when no translation
-- Copy uses `streamlit.components.v1.html` with JS clipboard API
+- Right panel (inside `right_col`): download button (secondary, `use_container_width=True`), `disabled` when no translation
 - Download uses `st.download_button` with `mime="text/plain"`
 - `st.session_state` keys: `source_lang`, `target_lang`, `translation_result`, `source_text`, `text_output`
 

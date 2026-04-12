@@ -6,7 +6,6 @@ Streamlit app for translating text using [TranslateGemma 4B 8-bit](https://huggi
 
 - **Text translation** — translate text between supported languages (up to 5,000 characters)
 - **Swap languages** — swap source and target languages, moving translation output to source input
-- **Copy to clipboard** — copy translation output with one click
 - **Download as text** — download translation output as a `.txt` file
 
 ## Supported Languages
