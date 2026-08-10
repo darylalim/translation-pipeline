@@ -32,7 +32,7 @@ Quality varies. 55 of the 295 have published WMT24++ benchmark scores in the tec
 
 ## Model
 
-Runs the 8-bit MLX quant [`mlx-community/translategemma-4b-it-8bit`](https://huggingface.co/mlx-community/translategemma-4b-it-8bit) (~4B parameters). On first launch it downloads from the Hugging Face Hub (~4–5 GB) and is cached; later runs load from that cache. All inference is local.
+Runs the 8-bit MLX quant [`mlx-community/translategemma-4b-it-8bit`](https://huggingface.co/mlx-community/translategemma-4b-it-8bit) (~4B parameters). On first launch it downloads 3.9 GB from the Hugging Face Hub into `~/.cache/huggingface/hub`; later runs load from that cache. Nothing renders until the download finishes, so a cold first start looks like a hang. All inference is local.
 
 ## Requirements
 
@@ -55,9 +55,16 @@ uv run ruff format .           # format
 uv run ty check                # typecheck
 uv run pytest                  # run tests
 uv run pytest --cov            # run tests with coverage
+uv run pytest -m live          # run the live-model test (loads the real quant)
 ```
 
+The live test is deselected by default, since it loads the full 3.9 GB model. Run it after any `mlx` or `mlx-lm` upgrade — the rest of the suite mocks `mlx_lm`, so it cannot see a stack that loads fine but generates nothing.
+
 CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, and tests on every push to `main` and PR — on `macos-latest`, since `mlx-lm` ships macOS-only wheels.
+
+## Releases
+
+Bumping `version` in `pyproject.toml` is the whole release process. Push the bump to `main` and, once CI passes, the workflow tags the commit and publishes a GitHub Release with generated notes.
 
 ## License
 
