@@ -11,6 +11,7 @@ Streamlit application for translation using [Google TranslateGemma](https://hugg
 - `uv run ty check` — typecheck
 - `uv run pytest` — run tests
 - `uv run pytest tests/path_to_test.py::test_name -v` — run single test
+- `uv run pytest -m live` — run the live-model test (loads the real quant; deselected by default)
 - `uv run pytest --cov` — run tests with coverage (sources configured in `pyproject.toml`)
 
 ## Code Style
@@ -87,11 +88,14 @@ The module configures `logging.basicConfig(INFO)` (silencing `httpx` to `WARNING
 
 ## Testing
 
-Two layers plus a config guard, ~1s combined for 87 tests at 100% coverage:
+Two mocked layers plus a config guard, ~1s combined for 87 tests at 100% coverage, and one opt-in live test that runs against the real model:
 
 - **Import-time tests** — swap `sys.modules["streamlit"]` and `sys.modules["mlx_lm"]` for `MagicMock`s, import `streamlit_app.py`, then assert on captured `st.*` calls. No Streamlit runtime runs. Covers pure functions, layout, token counting, EOS stripping.
 - **End-to-end tests** (`TestStreamingClickPath`) — drive the real script via `streamlit.testing.v1.AppTest` with only `mlx_lm` mocked. Reaches branches the import-time tests can't: streaming click path, model-load failure, runtime target filtering, swap-button wiring, empty-text warning.
 - **Theme-config guard** (`TestThemeConfig`) — validates `.streamlit/config.toml` keys against Streamlit's option template (`config._config_options_template`), the same lookup the runtime uses. Catches invalid theme keys (e.g. a per-variant `base`) that Streamlit only *logs* a warning for, so they'd otherwise slip past the suite.
+- **Live-model test** (`tests/test_live_model.py`, `@pytest.mark.live`) — the only test with `mlx_lm` unmocked; drives AppTest against the real 3.9 GB quant and asserts a non-empty, EOS-free translation. **Deselected by default** via `-m "not live"` in `addopts`, so neither `uv run pytest` nor CI touches it. Run it with `uv run pytest -m live` after any `mlx`/`mlx-lm` bump — the mocked layers cannot see a stack that returns empty output.
+
+Because the app catches generation failures and renders `st.error`, the live test asserts on `at.error` as well as `at.exception`; checking only the latter turns a real failure into a downstream `KeyError`.
 
 **Fixtures (`tests/conftest.py`):**
 
@@ -140,7 +144,7 @@ The locale code matches the TranslateGemma Technical Report (Table 5). Since pro
 
 With `mlx` 0.32, `mlx-lm` 0.31.1 and 0.31.2 raise `RuntimeError: There is no Stream(gpu, 0) in current thread` from `wired_limit()` in `mlx_lm/generate.py` — generation runs on Streamlit's ScriptRunner thread, not the main thread. Translation returns empty; the app itself loads fine. Hence the `mlx-lm>=0.31.3` floor.
 
-The suite cannot catch this: every test replaces `mlx_lm` with a `MagicMock`, so no real generation ever runs. Only a live run against the actual model surfaces it — worth doing by hand after any `mlx`/`mlx-lm` bump.
+The mocked layers cannot catch this: they replace `mlx_lm` with a `MagicMock`, so no real generation ever runs. `tests/test_live_model.py` exists for exactly this failure — run `uv run pytest -m live` after any `mlx`/`mlx-lm` bump.
 
 ## Prompt Template
 
