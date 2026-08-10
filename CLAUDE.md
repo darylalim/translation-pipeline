@@ -23,8 +23,12 @@ Streamlit application for translation using [Google TranslateGemma](https://hugg
 
 ## Dependencies
 
-- `streamlit` — web UI
-- `mlx-lm` — model loading and inference on Apple Silicon
+- `streamlit>=1.58` — web UI; 1.58 is the release the UI conventions were written against
+- `mlx-lm>=0.31.3` — model loading and inference on Apple Silicon; see Known Issues for why the floor is a patch version
+
+Dev-group floors (`pytest>=8.4`, `ruff>=0.16`, `ty>=0.0.69`) pin the tools whose output *is* the CI contract — a lower `ruff` can format differently and a lower `ty` can emit different diagnostics, either of which fails the build.
+
+Floors record the oldest version verified to work; `uv.lock` still pins the exact resolution. Verify a floor change with `uv lock --resolution lowest-direct && uv sync --frozen`, then run the gate (plain `uv sync` silently re-resolves to highest and hides the floor).
 
 ## Architecture
 
@@ -75,7 +79,7 @@ The module configures `logging.basicConfig(INFO)` (silencing `httpx` to `WARNING
 - **Streaming** — Translate feeds `translate_stream()` into a fixed-height (300) `st.container`, updated token-by-token via `st.text` (raw text, not markdown — matches the text area and the `text/plain` download). On completion the result is saved to `st.session_state["translation_result"]` and `st.rerun()` reverts the placeholder to the settled text area.
 - **Session state keys** — `source_lang`, `target_lang`, `translation_result`, `source_text`, `text_output`
 - **State seeding** — output text areas are populated via session state (not the `value=` parameter) to avoid stale widget state
-- **1.58 conventions** — buttons size with `width="stretch"` (replacing the deprecated `use_container_width`, which 1.58 still accepts but plans to remove); the page icon and the `st.error`/`st.warning` callouts use Material Symbols (`:material/...:`)
+- **1.61 conventions** — buttons size with `width="stretch"` (replacing the deprecated `use_container_width`, which 1.61 still accepts but plans to remove); the page icon and the `st.error`/`st.warning` callouts use Material Symbols (`:material/...:`)
 
 ### Theme
 
@@ -131,6 +135,12 @@ The locale code matches the TranslateGemma Technical Report (Table 5). Since pro
 ### Theme variant keys are top-level-only
 
 `base` and `chartCategoricalColors` are valid only in the top-level `[theme]` section, not inside `[theme.light]`/`[theme.dark]`. Streamlit only *logs* a warning for an invalid config key rather than raising, so `TestThemeConfig` validates every `config.toml` key against Streamlit's option template to catch regressions.
+
+### `mlx-lm` below 0.31.3 breaks on Streamlit's thread
+
+With `mlx` 0.32, `mlx-lm` 0.31.1 and 0.31.2 raise `RuntimeError: There is no Stream(gpu, 0) in current thread` from `wired_limit()` in `mlx_lm/generate.py` — generation runs on Streamlit's ScriptRunner thread, not the main thread. Translation returns empty; the app itself loads fine. Hence the `mlx-lm>=0.31.3` floor.
+
+The suite cannot catch this: every test replaces `mlx_lm` with a `MagicMock`, so no real generation ever runs. Only a live run against the actual model surfaces it — worth doing by hand after any `mlx`/`mlx-lm` bump.
 
 ## Prompt Template
 

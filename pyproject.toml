@@ -1,21 +1,25 @@
 [project]
 name = "translategemma-studio"
-version = "0.13.1"
+version = "0.14.0"
 description = "Streamlit application for translation using Google TranslateGemma on Apple Silicon with MLX."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
+# Lower bounds record the oldest version the app is known to work against;
+# uv.lock still pins the exact resolution. See CLAUDE.md for what each floor buys.
 dependencies = [
-    "streamlit",
-    "mlx-lm",
+    "streamlit>=1.58",
+    # 0.31.3 is a hard floor: earlier 0.31.x hit "no Stream(gpu, 0) in current
+    # thread" in wired_limit() when generating off Streamlit's ScriptRunner thread.
+    "mlx-lm>=0.31.3",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest",
+    "pytest>=8.4",
     "pytest-cov>=7.1.0",
-    "ruff",
-    "ty",
+    "ruff>=0.16",
+    "ty>=0.0.69",
 ]
 
 [tool.ruff.lint]
