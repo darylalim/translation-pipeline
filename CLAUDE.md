@@ -36,7 +36,7 @@ Each of these is explained in full further down; they are collected here because
 - **`tokenizer.apply_chat_template`** — the prompt is built as a raw string on purpose. See Known Issues.
 - **`Stop` hooks** — two existed and were removed deliberately. See Hooks.
 - **`use_container_width`** — deprecated by Streamlit; use `width="stretch"`.
-- **`base` / `chartCategoricalColors` inside `[theme.light]` or `[theme.dark]`** — top-level `[theme]` only, and Streamlit only *logs* a warning when you get it wrong.
+- **A `[theme]` block in `.streamlit/config.toml`** — the app deliberately ships none. A partial one (fonts or radii alone) still counts as a custom theme and locks the app to a single mode. See Architecture → Theme.
 - **The target-language filter's position** — it must stay above the target selectbox. See Architecture → UI.
 
 ## Code Style
@@ -112,7 +112,13 @@ The module configures `logging.basicConfig(INFO)` (silencing `httpx` to `WARNING
 
 ### Theme
 
-`.streamlit/config.toml` applies a Material Design 3 theme (violet `#6750A4` primary, Roboto via Google Fonts) with `[theme.light]` and `[theme.dark]` variants, which gives the in-app light/dark switcher. The file is git-tracked — `.gitignore` keeps `config.toml` while ignoring `secrets.toml` and the rest of `.streamlit/`.
+**There is no `.streamlit/config.toml`, and that is the theme.** The app uses Streamlit's built-in light and dark themes, with the stock Appearance switcher (Light / Dark / System) in the settings menu.
+
+Declaring nothing is the *only* way to get Streamlit's defaults. They are not values you can write down: `config.py` declares `primaryColor`, `backgroundColor`, `textColor` and the rest as option slots with descriptions but **no default values**, and `app_session.py` merely forwards whatever `config.toml` set into the `custom_theme` protobuf. The real defaults live in the frontend bundle. Any `[theme.light]`/`[theme.dark]` palette claiming to be "the Streamlit defaults" is hand-transcribed and will silently drift on the next upgrade.
+
+The trap on the way back: a `[theme]` block is all-or-nothing. Adding one to recover just the typography or the corner radii still makes it a custom theme, and a custom theme without **both** `[theme.light]` and `[theme.dark]` locks the app to a single mode — so the cheap-looking edit is the one that removes the light/dark switcher.
+
+`.gitignore` still ignores `.streamlit/*` while un-ignoring `config.toml`. Nothing matches it today; the rule is left in place so a future config file is tracked by default rather than silently ignored.
 
 ## Known Issues
 
@@ -137,10 +143,6 @@ This is safe only because the raw string reproduces the trained format exactly. 
 
 The locale code matches the TranslateGemma Technical Report (Table 5). Since prompts are built manually, the code is inserted as text — and the model was trained with these locale codes.
 
-### Theme variant keys are top-level-only
-
-`base` and `chartCategoricalColors` are among the options valid only in the top-level `[theme]` section, never inside `[theme.light]`/`[theme.dark]`. The full top-level-only set is 10 keys — also `baseFontSize`, `baseFontWeight`, `chartDivergingColors`, `chartSequentialColors`, `fontFaces`, `metricValueFontSize`, `metricValueFontWeight`, `showSidebarBorder` — and this repo's `config.toml` already relies on three of them. There are no variant-only keys. Streamlit only *logs* a warning for an invalid config key rather than raising, so `TestThemeConfig` validates every `config.toml` key against Streamlit's option template to catch regressions.
-
 ### `mlx-lm` below 0.31.3 breaks on Streamlit's thread
 
 With `mlx` 0.32, `mlx-lm` 0.31.1 and 0.31.2 raise `RuntimeError: There is no Stream(gpu, 0) in current thread` from `wired_limit()` in `mlx_lm/generate.py` — generation runs on Streamlit's ScriptRunner thread, not the main thread. Translation returns empty; the app itself loads fine. Hence the `mlx-lm>=0.31.3` floor.
@@ -149,12 +151,12 @@ The mocked layers cannot catch this: they replace `mlx_lm` with a `MagicMock`, s
 
 ## Testing
 
-Two mocked layers, a plain unit layer, and a config guard, ~1s combined for 87 tests at 100% coverage, plus one opt-in live test that runs against the real model:
+Two mocked layers, a plain unit layer, and a config guard, ~1s combined for 85 tests at 100% coverage, plus one opt-in live test that runs against the real model:
 
 - **Import-time tests** — swap `sys.modules["streamlit"]` and `sys.modules["mlx_lm"]` for `MagicMock`s, import `streamlit_app.py`, then assert on captured `st.*` calls. No Streamlit runtime runs. Covers pure functions, layout, token counting, EOS stripping.
 - **End-to-end tests** (`TestStreamingClickPath`) — drive the real script via `streamlit.testing.v1.AppTest` with only `mlx_lm` mocked. Reaches branches the import-time tests can't: streaming click path, model-load failure, runtime target filtering, swap-button wiring, empty-text warning.
 - **Language-table tests** (`tests/test_languages.py`) — 19 tests across 6 classes, mocking nothing; a bare `from languages import ...` inside each test. Assert the 225 / 70 / 295 / 294 counts, per-code samples (including `Chinese` → `zh-CN`), key non-overlap, code uniqueness, and sort order.
-- **Theme-config guard** (`TestThemeConfig`) — validates `.streamlit/config.toml` keys against Streamlit's option template (`config._config_options_template`, falling back to the public `config.get_config_options()` if that private attribute disappears), the same lookup the runtime uses. Catches invalid theme keys that Streamlit only *logs* a warning for, so they'd otherwise slip past the suite.
+- **Theme-config guard** (`TestThemeConfigAbsent`) — asserts `.streamlit/config.toml` does *not* exist. The invariant inverted rather than disappeared when the Material theme was dropped, and it is otherwise enforced by prose alone: `.gitignore` un-ignores exactly that path, so a stray config.toml commits by default while every other check stays green.
 - **Live-model test** (`tests/test_live_model.py`, `@pytest.mark.live`) — the only test with `mlx_lm` unmocked; drives AppTest against the real 3.9 GB quant and asserts a non-empty, EOS-free translation. **Deselected by default** via `-m "not live"` in `addopts`, so neither `uv run pytest` nor CI touches it.
 
 Because the app catches generation failures and renders `st.error`, the live test asserts on `at.error` as well as `at.exception`; checking only the latter turns a real failure into a downstream `KeyError`.
@@ -197,6 +199,68 @@ Releases are cut by the `release` job in `.github/workflows/ci.yml`. **Bumping `
 The publish path has **not yet run for real** — both existing releases were created by hand before the job landed, and its one execution took the already-tagged no-op branch. Watch the first genuine bump.
 
 To reword a release afterwards, `gh release edit vX.Y.Z --notes "..."` (or the GitHub UI) — the job never touches a release that already exists.
+
+## Screenshots
+
+`assets/screenshot-dark.png` is the README's only image: 2400×1352, a 1200×676 viewport at `device_scale_factor=2`. There is no capture script in the repo — this section is the recipe, because every step of it is a trap.
+
+Run the app in dark mode with a **CLI flag, never a config file**, since `.streamlit/config.toml` must stay absent (see Architecture → Theme):
+
+```sh
+uv run streamlit run streamlit_app.py --server.port 8501 --server.headless true --theme.base dark
+```
+
+Then drive it with Playwright via `uv run --with playwright python`, using `channel="chrome"`:
+
+This block is complete and runnable as written — keep it that way, and keep it
+ruff-formatted, because `ruff format --check .` formats Python inside Markdown
+fences and CI gate #2 fails on a hand-aligned snippet.
+
+```python
+from playwright.sync_api import sync_playwright
+
+TEXT = "Good morning! I would like to book a table for two at seven o'clock."
+HIDE = """
+document.querySelectorAll(
+    '[data-testid="stToolbar"],[data-testid="stStatusWidget"],[data-testid="stDecoration"]'
+).forEach((e) => (e.style.display = "none"))
+"""
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(channel="chrome")
+    ctx = browser.new_context(
+        viewport={"width": 1200, "height": 676}, device_scale_factor=2
+    )
+    page = ctx.new_page()
+    # Both waits must cover the cold model load, not just the selector one.
+    page.goto("http://localhost:8501", wait_until="networkidle", timeout=180_000)
+    page.wait_for_selector("textarea", timeout=180_000)
+
+    page.locator("textarea").first.fill(TEXT)
+    page.keyboard.press("Tab")  # commit the text_area
+    page.wait_for_timeout(2_000)  # let the rerun settle
+    page.get_by_role("button", name="Translate").click()
+
+    # Streaming ends when st.rerun() restores the disabled output text area.
+    page.wait_for_function(
+        "() => { const t = [...document.querySelectorAll('textarea')];"
+        " return t.length > 1 && t[1].value.trim().length > 0; }",
+        timeout=300_000,
+    )
+
+    page.evaluate(HIDE)
+    page.evaluate("document.activeElement && document.activeElement.blur()")
+    page.mouse.move(0, 0)
+    page.wait_for_timeout(800)
+    page.screenshot(path="assets/screenshot-dark.png")
+    browser.close()
+```
+
+- **`device_scale_factor=2` is not optional.** The dev machine is a non-retina 1920×1080 display reporting `devicePixelRatio: 1`, so macOS `screencapture` and the Chrome extension's screenshot both yield 1× — half the asset's resolution. Playwright synthesizes 2× regardless of the physical display.
+- **`channel="chrome"` avoids a browser download.** The cached Playwright build drifts from whatever version `uvx`/`--with` resolves (1228 vs 1234 at time of writing), and the mismatch triggers a ~150 MB `playwright install`. Driving the installed Chrome sidesteps it.
+- **Blur *and* move the mouse.** After the click the button keeps focus (focus ring) and the virtual mouse stays parked on it (`:hover` red). Both survive into the still. A correct capture samples `#FF4B4B` on the Translate button and `#0E1117` on the background — Streamlit's default dark values as of 1.61.1, and a cheap way to prove the theme is the built-in one. Those two constants are exactly the kind of hand-transcribed default the Theme section warns about, and nothing tests them: after a Streamlit bump, re-sample rather than trusting them.
+- **Re-measure the height after any layout change.** The viewport height is tuned to end just below the buttons; it is not a stable constant. Dropping the Material theme alone grew the page by ~90 CSS px (its `baseFontSize = 14` against Streamlit's default 16), which silently pushed the buttons out of frame at the old height.
+- **Streamlit commits a `text_area` on blur**, so `fill()` then `Tab`, and wait for the rerun before clicking Translate — clicking too early lands on a stale widget tree.
 
 ## Hooks
 

@@ -8,8 +8,7 @@
 Translate text between 295 languages entirely on your Mac — no cloud, no API keys, nothing leaves your machine. A Streamlit app that runs Google's [TranslateGemma](https://huggingface.co/google/translategemma-4b-it) locally on Apple Silicon via MLX.
 
 <p align="center">
-  <img src="assets/screenshot-light.png" width="49%" alt="TranslateGemma Studio in light mode" />
-  <img src="assets/screenshot-dark.png" width="49%" alt="TranslateGemma Studio in dark mode" />
+  <img src="assets/screenshot-dark.png" width="100%" alt="TranslateGemma Studio in dark mode" />
 </p>
 
 ## Features
@@ -19,7 +18,7 @@ Translate text between 295 languages entirely on your Mac — no cloud, no API k
 - **Token counter** — live input usage against the model's context window, with translation blocked when the input is over budget
 - **Swap languages** — swap source and target languages, moving translation output to source input
 - **Download as text** — download translation output as a `.txt` file
-- **Light and dark mode** — Material Design styling with an in-app theme switcher
+- **Light and dark mode** — Streamlit's built-in light and dark themes, with an in-app theme switcher
 
 ## Supported Languages
 

@@ -1,7 +1,10 @@
 # Secrets
 .env
 
-# Streamlit — track config.toml (theme/server settings); ignore secrets and anything else
+# Streamlit — ignore secrets and everything else under .streamlit/.
+# There is deliberately no config.toml: the app uses Streamlit's built-in
+# light/dark themes (see CLAUDE.md → Architecture → Theme). The negation stays
+# so that if one is ever added back it is tracked, not silently ignored.
 .streamlit/*
 !.streamlit/config.toml
 

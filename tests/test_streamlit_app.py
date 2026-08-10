@@ -1,4 +1,3 @@
-import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
@@ -520,45 +519,26 @@ class TestStreamingClickPath:
         assert app_test.session_state["target_lang"] == "English"
 
 
-class TestThemeConfig:
-    """Guard .streamlit/config.toml against invalid theme option keys.
+class TestThemeConfigAbsent:
+    """Guard the *absence* of .streamlit/config.toml.
 
-    Streamlit only *logs* a warning for an unknown config option, so an
-    invalid key (e.g. a per-variant ``base``) slips past the rest of the
-    suite — the running server is the only place it surfaces. These tests
-    check every key against Streamlit's own option template, the same lookup
-    the runtime uses.
+    The app ships Streamlit's built-in light and dark themes, and declaring
+    no theme is the only way to get them — the defaults live in the frontend
+    bundle, not in any value that can be written to config.toml. A partial
+    ``[theme]`` block is worse than none: without both ``[theme.light]`` and
+    ``[theme.dark]`` Streamlit locks the app to a single mode and drops the
+    in-app switcher that README lists as a feature.
+
+    Nothing else catches this. ``.gitignore`` un-ignores exactly this path,
+    so a config.toml added locally — to avoid the ``--theme.base dark`` flag
+    in the screenshot recipe, say — is committed by default and every other
+    check stays green.
     """
 
-    _CONFIG_PATH = Path(__file__).parent.parent / ".streamlit" / "config.toml"
+    def test_no_custom_theme_config(self):
+        config_path = Path(__file__).parent.parent / ".streamlit" / "config.toml"
 
-    def _load(self):
-        return tomllib.loads(self._CONFIG_PATH.read_text())
-
-    def _flatten(self, mapping, prefix=""):
-        for key, value in mapping.items():
-            dotted = f"{prefix}{key}"
-            if isinstance(value, dict):
-                yield from self._flatten(value, f"{dotted}.")
-            else:
-                yield dotted
-
-    def test_config_file_exists(self):
-        assert self._CONFIG_PATH.is_file()
-
-    def test_defines_light_and_dark_variants(self):
-        theme = self._load()["theme"]
-        # Non-empty variants are what make Streamlit show the in-app
-        # light/dark switcher (see the config.toml header comment).
-        assert theme.get("light"), "theme.light must define palette colors"
-        assert theme.get("dark"), "theme.dark must define palette colors"
-
-    def test_all_keys_are_valid_streamlit_options(self):
-        from streamlit import config
-
-        # Prefer the side-effect-free option-definition template; fall back to
-        # the public API if a future Streamlit renames the private attribute.
-        options = getattr(config, "_config_options_template", None)
-        valid = set(options or config.get_config_options())
-        invalid = [k for k in self._flatten(self._load()) if k not in valid]
-        assert invalid == [], f"Invalid config options: {invalid}"
+        assert not config_path.exists(), (
+            f"{config_path} must not exist — the app uses Streamlit's built-in "
+            "light and dark themes. See CLAUDE.md → Architecture → Theme."
+        )
