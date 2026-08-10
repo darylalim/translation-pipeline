@@ -8,14 +8,21 @@ on:
 jobs:
   test:
     # mlx-lm only ships macOS wheels, so the suite must run on an Apple
-    # Silicon runner even though most tests mock the model out.
-    runs-on: macos-14
+    # Silicon runner even though most tests mock the model out. macos-latest
+    # is macOS 26 arm64; macos-14 is deprecated (unsupported 2026-11-02).
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      # setup-uv stopped publishing bare major tags after v7, so @v9 does
+      # not resolve — pin the full version.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
-          enable-cache: true
-      - run: uv sync --dev
+          # Must be explicit: v9 defaults to "auto" (on) with prune-cache
+          # off, so omitting this uploads ~620 MB to save a ~4 s install.
+          enable-cache: false
+      # --locked fails the build if uv.lock has drifted from pyproject.toml.
+      # (--dev was a no-op — the dev group syncs by default.)
+      - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check

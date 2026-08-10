@@ -109,7 +109,7 @@ Because the app catches generation failures and renders `st.error`, the live tes
 
 **Pytest config (`pyproject.toml`):** `addopts = ["-ra", "--strict-markers", "--strict-config"]`, `xfail_strict = true`, `filterwarnings = ["error"]`. Coverage sources in `[tool.coverage.run]`.
 
-**CI (`.github/workflows/ci.yml`):** `ruff check` + `ruff format --check` + `ty` + `pytest` on `macos-14` (required for `mlx-lm`) for every push to `main` and PR.
+**CI (`.github/workflows/ci.yml`):** one job — `uv sync --locked`, then `ruff check` + `ruff format --check` + `ty` + `pytest` — on `macos-latest` (an Apple Silicon image is required for `mlx-lm`) for every push to `main` and PR. `--locked` is the gate that catches a `pyproject.toml` floor bump landing without a matching `uv.lock`; `enable-cache: false` is deliberate, since `setup-uv` v9 defaults it to `"auto"` with `prune-cache` off and the unpruned cache is ~620 MB against a ~4 s install. `setup-uv` publishes no bare major tag past v7, so the version is pinned in full (`@v9.0.0`).
 
 ## Hooks
 

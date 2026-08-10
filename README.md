@@ -57,7 +57,7 @@ uv run pytest                  # run tests
 uv run pytest --cov            # run tests with coverage
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, and tests on every push to `main` and PR — on `macos-14`, since `mlx-lm` ships macOS-only wheels.
+CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, and tests on every push to `main` and PR — on `macos-latest`, since `mlx-lm` ships macOS-only wheels.
 
 ## License
 
