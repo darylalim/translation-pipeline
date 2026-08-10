@@ -111,6 +111,23 @@ Because the app catches generation failures and renders `st.error`, the live tes
 
 **CI (`.github/workflows/ci.yml`):** `ruff check` + `ruff format --check` + `ty` + `pytest` on `macos-14` (required for `mlx-lm`) for every push to `main` and PR.
 
+## Hooks
+
+`.claude/settings.json` is git-tracked, so its hooks apply to every clone rather than one machine. Two hooks, both sub-100ms. A file watcher picks up edits to the file mid-session; `/hooks` shows what is actually live and which settings file it came from.
+
+- **`PreToolUse` on `Edit|Write`** — denies writes to `uv.lock`, `.env`, and `.streamlit/secrets.toml`. Change `uv.lock` through uv (`uv add` / `uv lock` / `uv sync`); the two gitignored secret files are edited by hand. The `case` matches the bare filename with an optional directory prefix, so `.env.example` and `uv.lock.bak` pass through.
+- **`PostToolUse` on `Edit|Write`** — runs `ruff format` then `ruff check --fix` on the edited file when it ends in `.py`, covering two of the four CI gates. Python files are therefore already formatted and auto-fixed after an edit; a follow-up `ruff format` pass is redundant.
+
+**No hook runs the tests or the type checker.** Two `Stop` hooks used to, and were removed deliberately: `Stop` fires once per *turn* rather than once per *change*, so conversational turns ran the full suite and a whole-project `ty check` against code nobody touched — and `exit 2` on `Stop` prevents the turn from ending, letting an unrelated or pre-existing failure hijack the conversation. Run `uv run pytest` and `uv run ty check` explicitly after changing Python; otherwise CI is the first thing that sees a failure. Do not reinstate them as `Stop` hooks.
+
+Hooks are the one part of this repo with no test and no CI signal — nothing validates the shell embedded in `settings.json`, and it survives two layers of escaping. After editing one, replay it from the file rather than from the string you meant to write:
+
+```sh
+CMD=$(jq -r '.hooks.PreToolUse[0].hooks[0].command' .claude/settings.json)
+printf '{"tool_input":{"file_path":"uv.lock"}}' | sh -c "$CMD"   # expect a deny payload
+printf '{"tool_input":{"file_path":"pyproject.toml"}}' | sh -c "$CMD"  # expect no output
+```
+
 ## Known Issues
 
 ### Do NOT use `tokenizer.apply_chat_template`
