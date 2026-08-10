@@ -27,3 +27,64 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ty check
       - run: uv run pytest
+
+  release:
+    # Tag and publish a GitHub Release whenever main carries a pyproject.toml
+    # version that has never been tagged. `needs: test` is the gate: a release
+    # can only ship code that passed lint, typecheck, and the suite — and since
+    # uv.lock records the project's own version, `uv sync --locked` there also
+    # catches a bump that landed without a matching `uv lock`.
+    needs: test
+    # push already only fires on main; the ref check keeps this correct if a
+    # branch is ever added to the trigger above. PRs reach here and skip.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # No MLX on this path, so the 10x-billed macOS runner would only cost time.
+    runs-on: ubuntu-latest
+    permissions:
+      # The repo default is read-only (default_workflow_permissions: read), so
+      # this must be requested explicitly or `gh release create` 403s.
+      contents: write
+    concurrency:
+      # Queue, never cancel: two pushes landing together must not race to
+      # create the same tag, and a half-finished release must not be killed.
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Resolve version and check for an existing tag
+        id: version
+        run: |
+          set -euo pipefail
+          # tomllib over grep: it reads the [project] table specifically, so it
+          # cannot match a `version` key from some other table, and it fails
+          # loudly on a malformed file instead of silently yielding nothing.
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          TAG="v$VERSION"
+          echo "tag=$TAG" >>"$GITHUB_OUTPUT"
+          # Tag existence, not a diff against the parent commit, is the release
+          # signal — it survives workflow re-runs, squash merges, and the bumps
+          # here that ride along with unrelated changes in one commit.
+          # Ask the remote: checkout is shallow and fetches no tags.
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already tagged — nothing to release."
+            echo "release=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "$TAG is untagged — releasing."
+            echo "release=true" >>"$GITHUB_OUTPUT"
+          fi
+      - name: Publish release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Passed through env rather than interpolated into the script, so a
+          # crafted pyproject.toml value cannot break out into shell.
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # This creates the tag at the release commit too — a lightweight tag,
+          # matching v0.13.1/v0.14.0. --generate-notes builds the body from the
+          # commits since the previous release.
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
